@@ -40,8 +40,6 @@ import com.example.data.local.*
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.EcoViewModel
 import com.example.ui.viewmodel.UiState
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,17 +47,16 @@ fun MainAppScreen(viewModel: EcoViewModel) {
     val activeTab by viewModel.activeTab.collectAsStateWithLifecycle()
     val activeLanguage by viewModel.activeLanguage.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
-    val coroutineScope = rememberCoroutineScope()
     
     // UI strings corresponding to dynamic localization dictionaries
     val dictEn = mapOf(
-        "app_tag" to "v1.0.4  //  SDK 34 READY",
+        "app_tag" to "Simple Air & Farm Monitor",
         "map_tab" to "Map",
         "plots_tab" to "Plots",
-        "scan_tab" to "AI Scan",
+        "scan_tab" to "Scan",
         "settings_tab" to "Settings",
-        "add_plot" to "Register Plot",
-        "report_sos" to "Report Climate SOS",
+        "add_plot" to "Add plot",
+        "report_sos" to "Report issue",
         "sos_type" to "Warning Type",
         "sos_desc" to "Describe Environmental Danger",
         "cancel" to "Cancel",
@@ -67,10 +64,10 @@ fun MainAppScreen(viewModel: EcoViewModel) {
         "plot_details" to "Plot Details",
         "soil_moisture" to "Soil Moisture",
         "health_rating" to "Crop Health Score",
-        "scan_plant" to "Scan Leaf Specimen",
-        "choose_crop" to "Select Crop Species",
-        "trigger_scan" to "Execute AI Computer Vision Scan",
-        "history_scans" to "In-Device Diagnostics History",
+        "scan_plant" to "Plant Scan",
+        "choose_crop" to "Choose crop",
+        "trigger_scan" to "Scan plant",
+        "history_scans" to "Scan history",
         "sys_architecture" to "Senior Architect System Specs & FastAPI Diagram",
         "architecture_explain" to "This offline-first mobile app synchronizes client-side Room entities with localized FastAPI endpoints in Armenia, Yerevan, and world clusters. Crop AI and Air Quality analytics are served locally or in-cloud according to network metrics.",
         "lang_switch" to "Configure Dynamic System Locale",
@@ -88,10 +85,10 @@ fun MainAppScreen(viewModel: EcoViewModel) {
     )
 
     val dictAm = mapOf(
-        "app_tag" to "v1.0.4  //  SDK 34 ՊԱՏՐԱՍՏ Է",
+        "app_tag" to "Պարզ օդի և դաշտի մոնիթոր",
         "map_tab" to "Քարտեզ",
         "plots_tab" to "Հողամասեր",
-        "scan_tab" to "ԱԻ Սկան",
+        "scan_tab" to "Սկան",
         "settings_tab" to "Կարգավորումներ",
         "add_plot" to "Գրանցել Հողամաս",
         "report_sos" to "Հայտնել Կլիմայական SOS",
@@ -104,7 +101,7 @@ fun MainAppScreen(viewModel: EcoViewModel) {
         "health_rating" to "Բույսերի առողջության միավոր",
         "scan_plant" to "Սկանավորել Տերևի Օրինակը",
         "choose_crop" to "Ընտրեք Մշակաբույսի Տեսակը",
-        "trigger_scan" to "Կատարել ԱԻ Համակարգչային Տեսողության Սկան",
+        "trigger_scan" to "Սկանավորել բույսը",
         "history_scans" to "Սարքի Ախտորոշումների Պատմություն",
         "sys_architecture" to "Համակարգի Ճարտարապետություն և Ֆասթ-ԱՊԻ Դիագրամ",
         "architecture_explain" to "Այս անցանց-առաջնային բջջային հավելվածը սինխրոնացնում է Room տվյալների բազան տեղայնացված FastAPI սերվերների հետ Հայաստանում: Բույսերի արհեստական բանականության սկանավորումները իրականացվում են տեղում կամ ամպում:",
@@ -123,10 +120,10 @@ fun MainAppScreen(viewModel: EcoViewModel) {
     )
 
     val dictRu = mapOf(
-        "app_tag" to "v1.0.4  //  SDK 34 READY",
+        "app_tag" to "Простой монитор воздуха и полей",
         "map_tab" to "Карта",
         "plots_tab" to "Участки",
-        "scan_tab" to "ИИ Скан",
+        "scan_tab" to "Скан",
         "settings_tab" to "Настройки",
         "add_plot" to "Регистрация Участка",
         "report_sos" to "Сообщить о Climate SOS",
@@ -139,7 +136,7 @@ fun MainAppScreen(viewModel: EcoViewModel) {
         "health_rating" to "Индекс Здоровья Культуры",
         "scan_plant" to "Сканировать Образец Листа",
         "choose_crop" to "Выберите Сельхозкультуру",
-        "trigger_scan" to "Выполнить Компьютерный Скан ИИ",
+        "trigger_scan" to "Сканировать растение",
         "history_scans" to "История Диагностики на Устройстве",
         "sys_architecture" to "Спецификация Архитектуры и FastAPI Модель",
         "architecture_explain" to "Данное автономно-приоритетное приложение синхронизирует локальные Room-ресурсы с FastAPI кластерами. ИИ диагностика листьев выполняется локально через TFLite или отправляется в облачный API.",
@@ -169,9 +166,9 @@ fun MainAppScreen(viewModel: EcoViewModel) {
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            .background(CyberBlack),
+            .background(Color(0xFF0E141B)),
         bottomBar = {
-            Column(modifier = Modifier.background(DeepCharcoal)) {
+            Column(modifier = Modifier.background(Color(0xFF121A24))) {
                 // Custom Material 3 styled Navigation Bar
                 NavigationBar(
                     containerColor = DeepCharcoal,
@@ -220,7 +217,7 @@ fun MainAppScreen(viewModel: EcoViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp)
-                        .background(DeepCharcoal)
+                        .background(Color(0xFF121A24))
                 ) {
                     Box(
                         modifier = Modifier
@@ -237,7 +234,7 @@ fun MainAppScreen(viewModel: EcoViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(CyberBlack)
+                .background(Color(0xFF0E141B))
         ) {
             // App Status bar line indicator simulator
             Box(
@@ -293,7 +290,7 @@ fun MainAppScreen(viewModel: EcoViewModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .border(1.dp, BorderGrey)
-                    .background(DeepCharcoal)
+                    .background(Color(0xFF121A24))
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -301,7 +298,7 @@ fun MainAppScreen(viewModel: EcoViewModel) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "ECO·SYS",
+                            text = "ClearAir",
                             color = NeonGreen,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Black,
@@ -315,7 +312,7 @@ fun MainAppScreen(viewModel: EcoViewModel) {
                                 .padding(horizontal = 4.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "MVP",
+                                text = "NEW",
                                 color = NeonGreen,
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Bold,
@@ -359,7 +356,7 @@ fun MainAppScreen(viewModel: EcoViewModel) {
                                     .background(if (isSyncing) AlertOrange else NeonGreen, CircleShape)
                             )
                             Text(
-                                text = if (isSyncing) "FastAPI Sync..." else "Local Cached DB",
+                                text = if (isSyncing) "Syncing..." else "Offline ready",
                                 color = if (isSyncing) AlertOrange else NeonGreen,
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Bold,
@@ -446,7 +443,7 @@ fun MapTabScreen(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0A0A0A))
+                .background(Color(0xFFEFF3F8))
                 .pointerInput(plots, sosAlerts) {
                     detectTapGestures { offset ->
                         // Detect click on plots elements mapped to grid
@@ -496,7 +493,7 @@ fun MapTabScreen(
             var x = 0f
             while (x < canvasWidth) {
                 drawLine(
-                    color = BorderGrey.copy(alpha = 0.5f),
+                    color = Color(0xFFD5DEE8),
                     start = Offset(x, 0f),
                     end = Offset(x, canvasHeight),
                     strokeWidth = 1.dp.toPx()
@@ -506,7 +503,7 @@ fun MapTabScreen(
             var y = 0f
             while (y < canvasHeight) {
                 drawLine(
-                    color = BorderGrey.copy(alpha = 0.5f),
+                    color = Color(0xFFD5DEE8),
                     start = Offset(0f, y),
                     end = Offset(canvasWidth, y),
                     strokeWidth = 1.dp.toPx()
@@ -516,7 +513,7 @@ fun MapTabScreen(
 
             // 2. Draw glowing concentric crop target guidelines
             drawCircle(
-                color = MutedTeal.copy(alpha = 0.15f),
+                color = Color(0xFF9FC5E8).copy(alpha = 0.35f),
                 radius = canvasWidth * 0.3f,
                 center = Offset(canvasWidth / 2f, canvasHeight / 2f),
                 style = Stroke(width = 1.dp.toPx())
@@ -529,12 +526,12 @@ fun MapTabScreen(
 
                 // Pulsing outer halo for healthy vegetation
                 drawCircle(
-                    color = NeonGreen.copy(alpha = 0.15f),
+                    color = Color(0xFF6FCF97).copy(alpha = 0.30f),
                     radius = 32.dp.toPx(),
                     center = Offset(px.toFloat(), py.toFloat())
                 )
                 drawCircle(
-                    color = NeonGreen,
+                    color = Color(0xFF2F855A),
                     radius = 6.dp.toPx(),
                     center = Offset(px.toFloat(), py.toFloat())
                 )
@@ -581,7 +578,7 @@ fun MapTabScreen(
                 Text(
                     text = if (activeLanguage == "am") "Սեղմեք քարտեզի կետերին՝ մանրամասների համար" 
                            else if (activeLanguage == "ru") "Нажмите на точки карты для инфо" 
-                           else "Tap custom map nodes to inspect sensor parameters",
+                           else "Tap map markers to see details",
                     color = Color.White.copy(alpha = 0.8f),
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
@@ -1447,7 +1444,7 @@ fun ScanTabScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "MOBILE COMPUTER VISION & LOCAL MULTILINGUAL AGRI-DIAGNOSTIC",
+                    text = "Quick crop health check",
                     color = TextMuted,
                     fontSize = 9.sp,
                     fontFamily = FontFamily.Monospace
@@ -1516,15 +1513,6 @@ fun ScanTabScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         if (scanState is UiState.Loading) {
-                            // Pulsating Scanner Line
-                            var scannerY by remember { mutableStateOf(0f) }
-                            LaunchedEffect(Unit) {
-                                while (true) {
-                                    scannerY = 0f
-                                    delay(50)
-                                    // Simulated motion
-                                }
-                            }
 
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -1532,7 +1520,7 @@ fun ScanTabScreen(
                             ) {
                                 CircularProgressIndicator(color = NeonGreen)
                                 Text(
-                                    text = "FASTAPI PIPELINE: CLUSTER RUNNING COMPRESSION...",
+                                    text = "Scanning image...",
                                     color = NeonGreen,
                                     fontSize = 8.sp,
                                     fontFamily = FontFamily.Monospace,
@@ -1561,7 +1549,7 @@ fun ScanTabScreen(
                                     modifier = Modifier.size(44.dp)
                                 )
                                 Text(
-                                    text = "[ CAMERA PREVIEW SPECS: READY ]",
+                                    text = "Camera preview",
                                     color = TextMuted,
                                     fontSize = 8.sp,
                                     fontFamily = FontFamily.Monospace,
@@ -1627,7 +1615,7 @@ fun ScanTabScreen(
                                         fontSize = 15.sp
                                     )
                                     Text(
-                                        text = "FASTAPI CALLBACK CONFIDENCE INDEX METRIC",
+                                        text = "Scan confidence",
                                         color = TextMuted,
                                         fontSize = 8.sp,
                                         fontFamily = FontFamily.Monospace
@@ -1668,7 +1656,7 @@ fun ScanTabScreen(
 
                             // Bio-treatments
                             Text(
-                                text = "ORGANIC TREATMENTS & REMEDIES",
+                                text = "Recommended treatment",
                                 color = TextMuted,
                                 fontSize = 9.sp,
                                 fontFamily = FontFamily.Monospace,
@@ -1693,7 +1681,7 @@ fun ScanTabScreen(
                                 onClick = { viewModel.resetScanState() },
                                 modifier = Modifier.align(Alignment.End)
                             ) {
-                                Text(text = "Reset Scan Panel", color = Color.White.copy(alpha = 0.5f))
+                                Text(text = "Clear result", color = Color.White.copy(alpha = 0.7f))
                             }
                         }
                     }
