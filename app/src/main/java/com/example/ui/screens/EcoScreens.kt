@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -23,6 +24,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -120,7 +123,7 @@ fun MainAppScreen(viewModel: EcoViewModel) {
     )
 
     val dictRu = mapOf(
-        "app_tag" to "v1.0.4  //  К SDK 34 ГОТОВ",
+        "app_tag" to "v1.0.4  //  SDK 34 READY",
         "map_tab" to "Карта",
         "plots_tab" to "Участки",
         "scan_tab" to "ИИ Скан",
@@ -250,7 +253,7 @@ fun MainAppScreen(viewModel: EcoViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "12:45",
+                        text = remember { LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) },
                         color = Color.White.copy(alpha = 0.6f),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Medium,
@@ -386,16 +389,22 @@ fun MainAppScreen(viewModel: EcoViewModel) {
             Divider(color = BorderGrey, thickness = 1.dp)
 
             // Animated Screen Switching Container
-            Box(
+            AnimatedContent(
+                targetState = activeTab,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(220)) + slideInHorizontally(animationSpec = tween(220)) { it / 8 } togetherWith
+                        fadeOut(animationSpec = tween(180)) + slideOutHorizontally(animationSpec = tween(180)) { -it / 10 }
+                },
+                label = "tabTransition",
                 modifier = Modifier
                     .fillMaxSize()
                     .weight(1f)
-            ) {
-                when (activeTab) {
+            ) { tab ->
+                when (tab) {
                     0 -> MapTabScreen(viewModel = viewModel, getLabel = ::getLabel)
                     1 -> PlotsTabScreen(viewModel = viewModel, getLabel = ::getLabel)
                     2 -> ScanTabScreen(viewModel = viewModel, getLabel = ::getLabel)
-                    3 -> SettingsTabScreen(viewModel = viewModel, getLabel = ::getLabel)
+                    else -> SettingsTabScreen(viewModel = viewModel, getLabel = ::getLabel)
                 }
             }
         }
