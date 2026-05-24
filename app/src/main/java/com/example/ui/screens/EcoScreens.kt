@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,144 +22,38 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.R
 import com.example.data.local.*
+import com.example.ui.localization.AppStrings
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.EcoViewModel
 import com.example.ui.viewmodel.UiState
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ГЛАВНЫЙ ЭКРАН — навигация + статус-бар + шапка
+// ИСПРАВЛЕНО:
+//   - Нет inline-словарей; используем AppStrings через viewModel.label()
+//   - Название "EcoSys" берётся из AppStrings, не хардкодится как "ClearAir"
+// ─────────────────────────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppScreen(viewModel: EcoViewModel) {
-    val activeTab by viewModel.activeTab.collectAsStateWithLifecycle()
+    val activeTab      by viewModel.activeTab.collectAsStateWithLifecycle()
     val activeLanguage by viewModel.activeLanguage.collectAsStateWithLifecycle()
-    val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
-    
-    // UI strings corresponding to dynamic localization dictionaries
-    val dictEn = mapOf(
-        "app_tag" to "Simple Air & Farm Monitor",
-        "map_tab" to "Map",
-        "plots_tab" to "Plots",
-        "scan_tab" to "Scan",
-        "settings_tab" to "Settings",
-        "add_plot" to "Add plot",
-        "report_sos" to "Report issue",
-        "sos_type" to "Warning Type",
-        "sos_desc" to "Describe Environmental Danger",
-        "cancel" to "Cancel",
-        "publish" to "Publish Alert",
-        "plot_details" to "Plot Details",
-        "soil_moisture" to "Soil Moisture",
-        "health_rating" to "Crop Health Score",
-        "scan_plant" to "Plant Scan",
-        "choose_crop" to "Choose crop",
-        "trigger_scan" to "Scan plant",
-        "history_scans" to "Scan history",
-        "sys_architecture" to "Senior Architect System Specs & FastAPI Diagram",
-        "architecture_explain" to "This offline-first mobile app synchronizes client-side Room entities with localized FastAPI endpoints in Armenia, Yerevan, and world clusters. Crop AI and Air Quality analytics are served locally or in-cloud according to network metrics.",
-        "lang_switch" to "Configure Dynamic System Locale",
-        "sync_local" to "Sync Offline Local Storage DB",
-        "sync_in_progress" to "Synchronizing with Remote FastAPI...",
-        "no_scans" to "No plant scans recorded yet. Capture farm specimens above.",
-        "no_plots" to "No agricultural plots recorded. Register an initial block to begin monitoring.",
-        "report_issue" to "Report SOS Node",
-        "close" to "Close",
-        "water_shortage" to "Water Shortage / Canal Block",
-        "pest_outbreak" to "Pest Invasion / Insects",
-        "frost_alert" to "Sudden Mountain Frost Danger",
-        "fire_alert" to "Active Brushfire Alert",
-        "selected_marker" to "Selected Location Context"
-    )
+    val isSyncing      by viewModel.isSyncing.collectAsStateWithLifecycle()
 
-    val dictAm = mapOf(
-        "app_tag" to "Պարզ օդի և դաշտի մոնիթոր",
-        "map_tab" to "Քարտեզ",
-        "plots_tab" to "Հողամասեր",
-        "scan_tab" to "Սկան",
-        "settings_tab" to "Կարգավորումներ",
-        "add_plot" to "Գրանցել Հողամաս",
-        "report_sos" to "Հայտնել Կլիմայական SOS",
-        "sos_type" to "Վտանգի Տեսակը",
-        "sos_desc" to "Նկարագրեք էկոլոգիական վտանգը",
-        "cancel" to "Չեղարկել",
-        "publish" to "Հրապարակել ահազանգ",
-        "plot_details" to "Հողի մանրամասները",
-        "soil_moisture" to "Հողի խոնավություն",
-        "health_rating" to "Բույսերի առողջության միավոր",
-        "scan_plant" to "Սկանավորել Տերևի Օրինակը",
-        "choose_crop" to "Ընտրեք Մշակաբույսի Տեսակը",
-        "trigger_scan" to "Սկանավորել բույսը",
-        "history_scans" to "Սարքի Ախտորոշումների Պատմություն",
-        "sys_architecture" to "Համակարգի Ճարտարապետություն և Ֆասթ-ԱՊԻ Դիագրամ",
-        "architecture_explain" to "Այս անցանց-առաջնային բջջային հավելվածը սինխրոնացնում է Room տվյալների բազան տեղայնացված FastAPI սերվերների հետ Հայաստանում: Բույսերի արհեստական բանականության սկանավորումները իրականացվում են տեղում կամ ամպում:",
-        "lang_switch" to "Համակարգի Դինամիկ Լեզուն",
-        "sync_local" to "Սինխրոնացնել Տեղական ՏԲ",
-        "sync_in_progress" to "Սինխրոնացվում է FastAPI սերվերի հետ...",
-        "no_scans" to "Ոչ մի սկանավորում չի գտնվել: Կատարեք առաջին սկանը վերևում:",
-        "no_plots" to "Հողամասեր չկան: Գրանցեք ձեր առաջին հողամասը՝ մոնիտորինգի համար:",
-        "report_issue" to "Հաղորդել SOS խնդիր",
-        "close" to "Փակել",
-        "water_shortage" to "Ջրի սակավություն / Ջրանցքի խցանում",
-        "pest_outbreak" to "Վնասատուների ներխուժում",
-        "frost_alert" to "Հանկարծակի ցրտահարության վտանգ",
-        "fire_alert" to "Հրդեհի վտանգ",
-        "selected_marker" to "Ընտրված վայրի տվյալները"
-    )
-
-    val dictRu = mapOf(
-        "app_tag" to "Простой монитор воздуха и полей",
-        "map_tab" to "Карта",
-        "plots_tab" to "Участки",
-        "scan_tab" to "Скан",
-        "settings_tab" to "Настройки",
-        "add_plot" to "Регистрация Участка",
-        "report_sos" to "Сообщить о Climate SOS",
-        "sos_type" to "Тип Угрозы",
-        "sos_desc" to "Опишите экологическую опасность",
-        "cancel" to "Отмена",
-        "publish" to "Публикация",
-        "plot_details" to "Параметры Участка",
-        "soil_moisture" to "Влагосодержание Почвы",
-        "health_rating" to "Индекс Здоровья Культуры",
-        "scan_plant" to "Сканировать Образец Листа",
-        "choose_crop" to "Выберите Сельхозкультуру",
-        "trigger_scan" to "Сканировать растение",
-        "history_scans" to "История Диагностики на Устройстве",
-        "sys_architecture" to "Спецификация Архитектуры и FastAPI Модель",
-        "architecture_explain" to "Данное автономно-приоритетное приложение синхронизирует локальные Room-ресурсы с FastAPI кластерами. ИИ диагностика листьев выполняется локально через TFLite или отправляется в облачный API.",
-        "lang_switch" to "Настроить Локаль Системы",
-        "sync_local" to "Синхронизация Базы Данных",
-        "sync_in_progress" to "Синхронизация с серверами FastAPI...",
-        "no_scans" to "Сканы не обнаружены. Проведите сканирование листа выше.",
-        "no_plots" to "Участки не зарегистрированы. Добавьте первый участок для слежения.",
-        "report_issue" to "Сообщить о бедствии SOS",
-        "close" to "Закрыть",
-        "water_shortage" to "Дефицит Воды / Канал Заблокирован",
-        "pest_outbreak" to "Нашествие Вредителей / Насекомых",
-        "frost_alert" to "Заморозки в горных районах",
-        "fire_alert" to "Лесной Пожар",
-        "selected_marker" to "Данные Выбранного Объекта"
-    )
-
-    // Helper translation string resolver lookup
-    fun getLabel(key: String): String {
-        return when (activeLanguage) {
-            "am" -> dictAm[key] ?: dictEn[key] ?: key
-            "ru" -> dictRu[key] ?: dictEn[key] ?: key
-            else -> dictEn[key] ?: key
-        }
+    // Ярлык — вызывается при каждой рекомпозиции, но AppStrings.get()
+    // просто делает map-lookup (O(1)), словари уже созданы.
+    val L = remember(activeLanguage) {
+        { key: String -> AppStrings.get(key, activeLanguage) }
     }
 
     Scaffold(
@@ -169,123 +62,112 @@ fun MainAppScreen(viewModel: EcoViewModel) {
             .background(Color(0xFF0E141B)),
         bottomBar = {
             Column(modifier = Modifier.background(Color(0xFF121A24))) {
-                // Custom Material 3 styled Navigation Bar
                 NavigationBar(
-                    containerColor = DeepCharcoal,
-                    tonalElevation = 8.dp,
-                    modifier = Modifier.navigationBarsPadding(),
-                    windowInsets = WindowInsets.navigationBars
+                    containerColor  = DeepCharcoal,
+                    tonalElevation  = 8.dp,
+                    modifier        = Modifier.navigationBarsPadding(),
+                    windowInsets    = WindowInsets.navigationBars,
                 ) {
                     val items = listOf(
-                        Triple(0, getLabel("map_tab"), Icons.Default.Map),
-                        Triple(1, getLabel("plots_tab"), Icons.Default.Spa),
-                        Triple(2, getLabel("scan_tab"), Icons.Default.CameraAlt),
-                        Triple(3, getLabel("settings_tab"), Icons.Default.Settings)
+                        Triple(0, L("map_tab"),      Icons.Default.Map),
+                        Triple(1, L("plots_tab"),    Icons.Default.Spa),
+                        Triple(2, L("scan_tab"),     Icons.Default.CameraAlt),
+                        Triple(3, L("settings_tab"), Icons.Default.Settings),
                     )
                     items.forEach { (tabId, label, icon) ->
                         val isSelected = activeTab == tabId
                         NavigationBarItem(
                             selected = isSelected,
-                            onClick = { viewModel.setTab(tabId) },
-                            icon = {
+                            onClick  = { viewModel.setTab(tabId) },
+                            icon     = {
                                 Icon(
-                                    imageVector = icon,
+                                    imageVector     = icon,
                                     contentDescription = label,
-                                    tint = if (isSelected) CyberBlack else Color.White.copy(alpha = 0.5f)
+                                    tint            = if (isSelected) CyberBlack else Color.White.copy(alpha = 0.5f),
                                 )
                             },
                             label = {
                                 Text(
-                                    text = label,
-                                    color = if (isSelected) NeonGreen else Color.White.copy(alpha = 0.6f),
-                                    fontSize = 11.sp,
+                                    text       = label,
+                                    color      = if (isSelected) NeonGreen else Color.White.copy(alpha = 0.6f),
+                                    fontSize   = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    fontFamily = FontFamily.Monospace
+                                    fontFamily = FontFamily.Monospace,
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = NeonGreen,
-                                selectedIconColor = CyberBlack,
-                                unselectedIconColor = Color.White.copy(alpha = 0.4f)
-                            )
+                                indicatorColor      = NeonGreen,
+                                selectedIconColor   = CyberBlack,
+                                unselectedIconColor = Color.White.copy(alpha = 0.4f),
+                            ),
                         )
                     }
                 }
-                
-                // Bottom Gesture line area padding
+                // Жест-полоска снизу
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp)
-                        .background(Color(0xFF121A24))
+                        .background(Color(0xFF121A24)),
                 ) {
                     Box(
                         modifier = Modifier
                             .width(120.dp)
                             .height(4.dp)
                             .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(2.dp))
-                            .align(Alignment.Center)
+                            .align(Alignment.Center),
                     )
                 }
             }
-        }
+        },
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFF0E141B))
+                .background(Color(0xFF0E141B)),
         ) {
-            // App Status bar line indicator simulator
+            // Симулятор статус-бара
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(26.dp)
                     .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.CenterStart
+                contentAlignment = Alignment.CenterStart,
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment     = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = remember { LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) },
-                        color = Color.White.copy(alpha = 0.6f),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                        fontFamily = FontFamily.Monospace
+                        text       = remember { LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) },
+                        color      = Color.White.copy(alpha = 0.6f),
+                        fontSize   = 10.sp,
+                        fontFamily = FontFamily.Monospace,
                     )
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment     = Alignment.CenterVertically,
                     ) {
-                        // Wi-Fi simulator dot
+                        Box(modifier = Modifier.size(6.dp).background(NeonGreen, CircleShape))
                         Box(
                             modifier = Modifier
-                                .size(6.dp)
-                                .background(NeonGreen, CircleShape)
-                        )
-                        // Battery indicator
-                        Box(
-                            modifier = Modifier
-                                .width(12.dp)
-                                .height(7.dp)
+                                .width(12.dp).height(7.dp)
                                 .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(1.dp))
-                                .padding(0.5.dp)
+                                .padding(0.5.dp),
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxHeight()
-                                    .fillMaxWidth(0.8f)
-                                    .background(Color.White.copy(alpha = 0.7f))
+                                    .fillMaxHeight().fillMaxWidth(0.8f)
+                                    .background(Color.White.copy(alpha = 0.7f)),
                             )
                         }
                     }
                 }
             }
 
-            // Real App Header
+            // Шапка приложения
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -293,1466 +175,699 @@ fun MainAppScreen(viewModel: EcoViewModel) {
                     .background(Color(0xFF121A24))
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment     = Alignment.CenterVertically,
             ) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        // ИСПРАВЛЕНО: название берётся из AppStrings, не хардкодится
                         Text(
-                            text = "ClearAir",
-                            color = NeonGreen,
-                            fontSize = 20.sp,
+                            text       = L("app_name"),
+                            color      = NeonGreen,
+                            fontSize   = 20.sp,
                             fontWeight = FontWeight.Black,
-                            letterSpacing = 1.sp
+                            letterSpacing = 1.sp,
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Box(
                             modifier = Modifier
                                 .background(NeonGreen.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
                                 .border(0.5.dp, NeonGreen.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                .padding(horizontal = 4.dp, vertical = 2.dp),
                         ) {
-                            Text(
-                                text = "NEW",
-                                color = NeonGreen,
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace
-                            )
+                            Text(text = "MVP", color = NeonGreen, fontSize = 8.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                         }
                     }
-                    Text(
-                        text = getLabel("app_tag"),
-                        color = NeonGreen.copy(alpha = 0.6f),
-                        fontSize = 9.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
+                    Text(text = L("app_tag"), color = NeonGreen.copy(alpha = 0.6f), fontSize = 9.sp, fontFamily = FontFamily.Monospace)
                 }
-
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment     = Alignment.CenterVertically,
                 ) {
-                    // Cache Status Tag
+                    // Индикатор синхронизации
                     Box(
                         modifier = Modifier
                             .background(
-                                color = if (isSyncing) AlertOrange.copy(alpha = 0.15f) else NeonGreen.copy(alpha = 0.1f),
-                                shape = RoundedCornerShape(12.dp)
+                                if (isSyncing) AlertOrange.copy(alpha = 0.15f) else NeonGreen.copy(alpha = 0.1f),
+                                RoundedCornerShape(12.dp),
                             )
-                            .border(
-                                width = 1.dp,
-                                color = if (isSyncing) AlertOrange.copy(alpha = 0.3f) else NeonGreen.copy(alpha = 0.2f),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .border(1.dp, if (isSyncing) AlertOrange.copy(alpha = 0.3f) else NeonGreen.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .background(if (isSyncing) AlertOrange else NeonGreen, CircleShape)
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Box(modifier = Modifier.size(6.dp).background(if (isSyncing) AlertOrange else NeonGreen, CircleShape))
                             Text(
-                                text = if (isSyncing) "Syncing..." else "Offline ready",
-                                color = if (isSyncing) AlertOrange else NeonGreen,
-                                fontSize = 8.sp,
+                                text       = if (isSyncing) L("syncing") else L("offline_ready"),
+                                color      = if (isSyncing) AlertOrange else NeonGreen,
+                                fontSize   = 8.sp,
                                 fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace
+                                fontFamily = FontFamily.Monospace,
                             )
                         }
                     }
-
-                    // Multi-language active indicator pill
+                    // Языковая пилюля
                     Box(
                         modifier = Modifier
                             .background(BorderGrey, RoundedCornerShape(8.dp))
                             .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
                     ) {
-                        Text(
-                            text = activeLanguage.uppercase(),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
+                        Text(text = activeLanguage.uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                     }
                 }
             }
 
-            Divider(color = BorderGrey, thickness = 1.dp)
+            HorizontalDivider(color = BorderGrey, thickness = 1.dp)
 
-            // Animated Screen Switching Container
+            // Анимированное переключение экранов
             AnimatedContent(
-                targetState = activeTab,
+                targetState  = activeTab,
                 transitionSpec = {
-                    fadeIn(animationSpec = tween(220)) + slideInHorizontally(animationSpec = tween(220)) { it / 8 } togetherWith
-                        fadeOut(animationSpec = tween(180)) + slideOutHorizontally(animationSpec = tween(180)) { -it / 10 }
+                    fadeIn(tween(220)) + slideInHorizontally(tween(220)) { it / 8 } togetherWith
+                            fadeOut(tween(180)) + slideOutHorizontally(tween(180)) { -it / 10 }
                 },
-                label = "tabTransition",
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f)
+                label    = "tabTransition",
+                modifier = Modifier.fillMaxSize().weight(1f),
             ) { tab ->
                 when (tab) {
-                    0 -> MapTabScreen(viewModel = viewModel, getLabel = ::getLabel)
-                    1 -> PlotsTabScreen(viewModel = viewModel, getLabel = ::getLabel)
-                    2 -> ScanTabScreen(viewModel = viewModel, getLabel = ::getLabel)
-                    else -> SettingsTabScreen(viewModel = viewModel, getLabel = ::getLabel)
+                    0    -> MapTabScreen(viewModel = viewModel, L = L)
+                    1    -> PlotsTabScreen(viewModel = viewModel, L = L)
+                    2    -> ScanTabScreen(viewModel = viewModel, L = L)
+                    else -> SettingsTabScreen(viewModel = viewModel, L = L)
                 }
             }
         }
     }
 }
 
-// =========================================================================================
-// TAB 0: INTERACTIVE MAP SCREEN & CROWDSOURCED CLIMATE SOS WRITER
-// =========================================================================================
+// ─────────────────────────────────────────────────────────────────────────────
+// TAB 0 — КАРТА И SOS-РЕПОРТЫ
+// ИСПРАВЛЕНО: fetchAqi вызывается с lat/lon участка
+// ─────────────────────────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapTabScreen(
     viewModel: EcoViewModel,
-    getLabel: (String) -> String
+    L: (String) -> String,
 ) {
-    val plots by viewModel.plotsList.collectAsStateWithLifecycle()
-    val sosAlerts by viewModel.sosAlertsList.collectAsStateWithLifecycle()
-    val aqiState by viewModel.aqiState.collectAsStateWithLifecycle()
-    
-    var selectedPlotId by remember { mutableStateOf<Long?>(null) }
-    var selectedSosId by remember { mutableStateOf<Long?>(null) }
-    var showReportSosDialog by remember { mutableStateOf(false) }
-    var showAddPlotDialog by remember { mutableStateOf(false) }
+    val plots      by viewModel.plotsList.collectAsStateWithLifecycle()
+    val sosAlerts  by viewModel.sosAlertsList.collectAsStateWithLifecycle()
+    val aqiState   by viewModel.aqiState.collectAsStateWithLifecycle()
 
-    // Forms fields for SOS dialog
-    var sosType by remember { mutableStateOf("WATER_SHORTAGE") }
-    var sosDescription by remember { mutableStateOf("") }
+    var selectedPlotId    by remember { mutableStateOf<Long?>(null) }
+    var selectedSosId     by remember { mutableStateOf<Long?>(null) }
+    var showReportSos     by remember { mutableStateOf(false) }
+    var showAddPlot       by remember { mutableStateOf(false) }
 
-    // Forms fields for Add Plot dialog
-    var plotName by remember { mutableStateOf("") }
-    var cropType by remember { mutableStateOf("Tomato (Early Blight Resistance)") }
-    var plotLocation by remember { mutableStateOf("Ararat Valley") }
-    var plotSize by remember { mutableStateOf("4.5") }
-
-    val activeLanguage by viewModel.activeLanguage.collectAsStateWithLifecycle()
+    var sosType       by remember { mutableStateOf("WATER_SHORTAGE") }
+    var sosDesc       by remember { mutableStateOf("") }
+    var plotName      by remember { mutableStateOf("") }
+    var plotCrop      by remember { mutableStateOf("") }
+    var plotLocation  by remember { mutableStateOf("") }
+    var plotSize      by remember { mutableStateOf("") }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Futuristic Interactive Grid Map Canvas implementation
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFEFF3F8))
                 .pointerInput(plots, sosAlerts) {
                     detectTapGestures { offset ->
-                        // Detect click on plots elements mapped to grid
-                        val w = size.width
-                        val h = size.height
+                        val w = size.width.toFloat()
+                        val h = size.height.toFloat()
 
                         var clickedPlot: PlotEntity? = null
-                        plots.forEachIndexed { index, plot ->
-                            val cx = w * 0.2f + (plot.latitude % 1.0f) * w * 1.5f
-                            val cy = h * 0.3f + (plot.longitude % 1.0f) * h * 1.2f
-                            val distance = Math.hypot((offset.x - cx).toDouble(), (offset.y - cy).toDouble())
-                            if (distance < 40.0) {
+                        plots.forEach { plot ->
+                            val cx = w * 0.2f + (plot.latitude % 1.0f).toFloat() * w * 1.5f
+                            val cy = h * 0.3f + (plot.longitude % 1.0f).toFloat() * h * 1.2f
+                            if (Math.hypot((offset.x - cx).toDouble(), (offset.y - cy).toDouble()) < 40.0) {
                                 clickedPlot = plot
                             }
                         }
 
                         var clickedSos: ClimateSosEntity? = null
-                        sosAlerts.forEachIndexed { index, alert ->
-                            val cx = w * 0.4f + (alert.latitude % 1.0f) * w * 1.6f
-                            val cy = h * 0.5f - (alert.longitude % 1.0f) * h * 1.5f
-                            val distance = Math.hypot((offset.x - cx).toDouble(), (offset.y - cy).toDouble())
-                            if (distance < 40.0) {
+                        sosAlerts.forEach { alert ->
+                            val ax = w * 0.4f + (alert.latitude % 1.0f).toFloat() * w * 1.6f
+                            val ay = h * 0.5f - (alert.longitude % 1.0f).toFloat() * h * 1.5f
+                            if (Math.hypot((offset.x - ax).toDouble(), (offset.y - ay).toDouble()) < 40.0) {
                                 clickedSos = alert
                             }
                         }
 
-                        if (clickedPlot != null) {
-                            selectedPlotId = clickedPlot!!.id
-                            selectedSosId = null
-                            viewModel.fetchAqi(clickedPlot!!.locationName)
-                        } else if (clickedSos != null) {
-                            selectedSosId = clickedSos!!.id
-                            selectedPlotId = null
-                        } else {
-                            // Reset selections if clicked on background grid empty spot
-                            selectedPlotId = null
-                            selectedSosId = null
+                        when {
+                            clickedPlot != null -> {
+                                selectedPlotId = clickedPlot!!.id
+                                selectedSosId  = null
+                                // ИСПРАВЛЕНО: передаём реальные координаты участка
+                                viewModel.fetchAqi(
+                                    lat          = clickedPlot!!.latitude,
+                                    lon          = clickedPlot!!.longitude,
+                                    locationName = clickedPlot!!.locationName,
+                                )
+                            }
+                            clickedSos != null -> {
+                                selectedSosId  = clickedSos!!.id
+                                selectedPlotId = null
+                            }
+                            else -> {
+                                selectedPlotId = null
+                                selectedSosId  = null
+                            }
                         }
                     }
-                }
+                },
         ) {
-            val canvasWidth = size.width
-            val canvasHeight = size.height
+            val cw = size.width
+            val ch = size.height
+            val step = 80.dp.toPx()
 
-            // 1. Draw glowing grid lines in 40dp units
-            val stepSize = 80.dp.toPx()
+            // Сетка карты
             var x = 0f
-            while (x < canvasWidth) {
-                drawLine(
-                    color = Color(0xFFD5DEE8),
-                    start = Offset(x, 0f),
-                    end = Offset(x, canvasHeight),
-                    strokeWidth = 1.dp.toPx()
-                )
-                x += stepSize
-            }
+            while (x < cw) { drawLine(Color(0xFFD5DEE8), Offset(x, 0f), Offset(x, ch), 1.dp.toPx()); x += step }
             var y = 0f
-            while (y < canvasHeight) {
-                drawLine(
-                    color = Color(0xFFD5DEE8),
-                    start = Offset(0f, y),
-                    end = Offset(canvasWidth, y),
-                    strokeWidth = 1.dp.toPx()
-                )
-                y += stepSize
-            }
+            while (y < ch) { drawLine(Color(0xFFD5DEE8), Offset(0f, y), Offset(cw, y), 1.dp.toPx()); y += step }
 
-            // 2. Draw glowing concentric crop target guidelines
-            drawCircle(
-                color = Color(0xFF9FC5E8).copy(alpha = 0.35f),
-                radius = canvasWidth * 0.3f,
-                center = Offset(canvasWidth / 2f, canvasHeight / 2f),
-                style = Stroke(width = 1.dp.toPx())
-            )
+            // Концентрические круги
+            drawCircle(Color(0xFF9FC5E8).copy(alpha = 0.35f), cw * 0.3f, Offset(cw / 2f, ch / 2f), style = Stroke(1.dp.toPx()))
 
-            // 3. Draw active Plot coordinate nodes
+            // Маркеры участков
             plots.forEach { plot ->
-                val px = canvasWidth * 0.2f + (plot.latitude % 1.0f) * canvasWidth * 1.5f
-                val py = canvasHeight * 0.3f + (plot.longitude % 1.0f) * canvasHeight * 1.2f
-
-                // Pulsing outer halo for healthy vegetation
-                drawCircle(
-                    color = Color(0xFF6FCF97).copy(alpha = 0.30f),
-                    radius = 32.dp.toPx(),
-                    center = Offset(px.toFloat(), py.toFloat())
-                )
-                drawCircle(
-                    color = Color(0xFF2F855A),
-                    radius = 6.dp.toPx(),
-                    center = Offset(px.toFloat(), py.toFloat())
-                )
+                val px = cw * 0.2f + (plot.latitude  % 1.0).toFloat() * cw * 1.5f
+                val py = ch * 0.3f + (plot.longitude % 1.0).toFloat() * ch * 1.2f
+                drawCircle(Color(0xFF6FCF97).copy(alpha = 0.30f), 32.dp.toPx(), Offset(px, py))
+                drawCircle(Color(0xFF2F855A), 6.dp.toPx(), Offset(px, py))
             }
 
-            // 4. Draw Climate SOS alerts in orange/red
+            // Маркеры SOS
             sosAlerts.forEach { alert ->
-                val ax = canvasWidth * 0.4f + (alert.latitude % 1.0f) * canvasWidth * 1.6f
-                val ay = canvasHeight * 0.5f - (alert.longitude % 1.0f) * canvasHeight * 1.5f
-
-                // Outer danger radar beacon
-                drawCircle(
-                    color = AlertRed.copy(alpha = 0.2f),
-                    radius = 28.dp.toPx(),
-                    center = Offset(ax.toFloat(), ay.toFloat())
-                )
-                drawCircle(
-                    color = AlertRed,
-                    radius = 5.dp.toPx(),
-                    center = Offset(ax.toFloat(), ay.toFloat())
-                )
+                val ax = cw * 0.4f + (alert.latitude  % 1.0).toFloat() * cw * 1.6f
+                val ay = ch * 0.5f - (alert.longitude % 1.0).toFloat() * ch * 1.5f
+                drawCircle(AlertRed.copy(alpha = 0.2f), 28.dp.toPx(), Offset(ax, ay))
+                drawCircle(AlertRed, 5.dp.toPx(), Offset(ax, ay))
             }
         }
 
-        // Overlay Instructions Map helper banner
+        // Подсказка сверху
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(16.dp)
                 .background(DeepCharcoal.copy(alpha = 0.9f), RoundedCornerShape(12.dp))
                 .border(1.dp, BorderGrey, RoundedCornerShape(12.dp))
-                .padding(horizontal = 14.dp, vertical = 8.dp)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = "info",
-                    tint = NeonGreen,
-                    modifier = Modifier.size(16.dp)
-                )
-                Text(
-                    text = if (activeLanguage == "am") "Սեղմեք քարտեզի կետերին՝ մանրամասների համար" 
-                           else if (activeLanguage == "ru") "Нажмите на точки карты для инфо" 
-                           else "Tap map markers to see details",
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
-                )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Default.Info, "info", tint = NeonGreen, modifier = Modifier.size(16.dp))
+                Text(text = L("tap_hint"), color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
             }
         }
 
-        // FLOATING AQI STATUS AND CROP METRICS DISPLAY OVERLAY
+        // Оверлей выбранного участка
         selectedPlotId?.let { plotId ->
             plots.find { it.id == plotId }?.let { plot ->
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(horizontal = 16.dp, vertical = 110.dp)
-                        .fillMaxWidth()
-                        .background(DeepCharcoal.copy(alpha = 0.95f), RoundedCornerShape(20.dp))
-                        .border(1.dp, MutedTeal, RoundedCornerShape(20.dp))
-                        .padding(16.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = plot.name,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
-                                Text(
-                                    text = "SENSOR IP: 10.244.18.2 // LAT: ${String.format("%.3f", plot.latitude)}",
-                                    color = TextMuted,
-                                    fontSize = 9.sp,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
-                            IconButton(onClick = { selectedPlotId = null }) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "close",
-                                    tint = Color.White.copy(alpha = 0.6f)
-                                )
-                            }
-                        }
-
-                        Divider(color = BorderGrey, thickness = 0.5.dp)
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            // Soil Moisture Metrics Unit
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .background(CyberBlack, RoundedCornerShape(12.dp))
-                                    .border(1.dp, BorderGrey, RoundedCornerShape(12.dp))
-                                    .padding(8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = getLabel("soil_moisture").uppercase(),
-                                    color = TextMuted,
-                                    fontSize = 8.sp,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "${plot.soilMoisture.toInt()}%",
-                                    color = SoftTeal,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Black,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
-
-                            // Crop Health metric
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .background(CyberBlack, RoundedCornerShape(12.dp))
-                                    .border(1.dp, BorderGrey, RoundedCornerShape(12.dp))
-                                    .padding(8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = getLabel("health_rating").uppercase(),
-                                    color = TextMuted,
-                                    fontSize = 8.sp,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "${plot.healthScore}%",
-                                    color = NeonGreen,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Black,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
-                        }
-
-                        // Localized AQI Fetching Block from Room database or FastAPI simulations
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(CyberBlack, RoundedCornerShape(12.dp))
-                                .border(1.dp, BorderGrey, RoundedCornerShape(12.dp))
-                                .padding(12.dp)
-                        ) {
-                            when (val state = aqiState) {
-                                is UiState.Loading -> {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(14.dp),
-                                            color = NeonGreen,
-                                            strokeWidth = 2.dp
-                                        )
-                                        Text(
-                                            text = "Pulling Live AQI Insights from FastAPI...",
-                                            fontSize = 11.sp,
-                                            color = Color.White.copy(alpha = 0.7f),
-                                            fontFamily = FontFamily.Monospace
-                                        )
-                                    }
-                                }
-                                is UiState.Success -> {
-                                    val aqi = state.data
-                                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(
-                                                    imageVector = Icons.Default.CloudSync,
-                                                    contentDescription = "aqi",
-                                                    tint = NeonGreen,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Text(
-                                                    text = "${getLabel("aqi_status")}: ${plot.locationName}",
-                                                    color = Color.White,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                            Text(
-                                                text = "AQI: ${aqi.aqiValue} [${aqi.levelCode}]",
-                                                color = if (aqi.aqiValue <= 50) NeonGreen else AlertOrange,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Black,
-                                                fontFamily = FontFamily.Monospace
-                                            )
-                                        }
-
-                                        // Linear quality Bar
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(5.dp)
-                                                .background(BorderGrey, RoundedCornerShape(4.dp))
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth(Math.min(1.0f, aqi.aqiValue / 150.0f))
-                                                    .fillMaxHeight()
-                                                    .background(
-                                                        if (aqi.aqiValue <= 50) NeonGreen else AlertOrange,
-                                                        RoundedCornerShape(4.dp)
-                                                    )
-                                            )
-                                        }
-
-                                        Text(
-                                            text = viewModel.getLocalizedText(aqi.advisoryEn, aqi.advisoryAm, aqi.advisoryRu),
-                                            color = Color.White.copy(alpha = 0.8f),
-                                            fontSize = 10.sp,
-                                            lineHeight = 14.sp
-                                        )
-                                    }
-                                }
-                                else -> {
-                                    Text(
-                                        text = "AQI Idle Mode. Click plot to poll API.",
-                                        fontSize = 10.sp,
-                                        color = TextMuted
-                                    )
-                                }
-                            }
-                        }
-                    }
+                PlotInfoOverlay(plot = plot, aqiState = aqiState, viewModel = viewModel, L = L) {
+                    selectedPlotId = null
                 }
             }
         }
 
-        // FLOATING CLIMATE SOS INDIVIDUAL INFO CONTEXT
+        // Оверлей выбранного SOS
         selectedSosId?.let { sosId ->
             sosAlerts.find { it.id == sosId }?.let { alert ->
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(horizontal = 16.dp, vertical = 110.dp)
-                        .fillMaxWidth()
-                        .background(DeepCharcoal.copy(alpha = 0.95f), RoundedCornerShape(20.dp))
-                        .border(1.dp, AlertRed, RoundedCornerShape(20.dp))
-                        .padding(16.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Icon(
-                                    imageVector = Icons.Default.Warning,
-                                    contentDescription = "warning",
-                                    tint = AlertRed,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Text(
-                                    text = alert.alertType.uppercase().replace("_", " "),
-                                    color = AlertRed,
-                                    fontWeight = FontWeight.Black,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 13.sp
-                                )
-                            }
-                            IconButton(onClick = { selectedSosId = null }) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "close",
-                                    tint = Color.White.copy(alpha = 0.6f)
-                                )
-                            }
-                        }
-
-                        Divider(color = BorderGrey, thickness = 0.5.dp)
-
-                        Text(
-                            text = alert.description,
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "REPORTED: ${alert.reportedBy}",
-                                color = TextMuted,
-                                fontSize = 8.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                            Button(
-                                onClick = {
-                                    viewModel.deleteSosAlert(alert.id)
-                                    selectedSosId = null
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = AlertRed.copy(alpha = 0.2f)),
-                                border = BorderStroke(1.dp, AlertRed),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                modifier = Modifier.height(26.dp)
-                            ) {
-                                Text(
-                                    text = "DISMISS / SOLVE",
-                                    color = AlertRed,
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
-                        }
-                    }
+                SosInfoOverlay(alert = alert, viewModel = viewModel, L = L) {
+                    selectedSosId = null
                 }
             }
         }
 
-        // SIDE REGISTRATION FLOATING ACTION BUTTONS
+        // FAB-кнопки
         Column(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
-                .padding(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            // Add plot registration floating button
             FloatingActionButton(
-                onClick = { showAddPlotDialog = true },
+                onClick        = { showAddPlot = true },
                 containerColor = NeonGreen,
-                contentColor = CyberBlack,
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.size(52.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AddHome,
-                    contentDescription = "Register Plot"
-                )
-            }
+                contentColor   = CyberBlack,
+                shape          = RoundedCornerShape(16.dp),
+                modifier       = Modifier.size(52.dp),
+            ) { Icon(Icons.Default.AddHome, L("add_plot")) }
 
-            // Report SOS warning floating button
             FloatingActionButton(
-                onClick = { showReportSosDialog = true },
+                onClick        = { showReportSos = true },
                 containerColor = AlertRed,
-                contentColor = Color.White,
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.size(52.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Warning,
-                    contentDescription = getLabel("report_sos")
-                )
-            }
+                contentColor   = Color.White,
+                shape          = RoundedCornerShape(16.dp),
+                modifier       = Modifier.size(52.dp),
+            ) { Icon(Icons.Default.Warning, L("report_sos")) }
         }
     }
 
-    // DIALOG: RECORD NEW CLIMATE OUTBREAK WARNING (SOS MAPPING)
-    if (showReportSosDialog) {
-        AlertDialog(
-            onDismissRequest = { showReportSosDialog = false },
-            title = {
-                Text(
-                    text = getLabel("report_sos"),
-                    color = AlertRed,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-            },
-            containerColor = DeepCharcoal,
-            shape = RoundedCornerShape(20.dp),
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Your telemetry data will pinpoint this environmental threat on coordinates map instantly.",
-                        fontSize = 11.sp,
-                        color = Color.White.copy(alpha = 0.7f)
-                    )
-
-                    Text(
-                        text = getLabel("sos_type"),
-                        color = TextMuted,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
-                    )
-
-                    // Selection Row for alert Type
-                    val sosTypes = listOf("WATER_SHORTAGE", "PEST_OUTBREAK", "FROST_ALERT", "FIRE_ALERT")
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        sosTypes.forEach { type ->
-                            val active = sosType == type
-                            Box(
-                                modifier = Modifier
-                                    .background(
-                                        if (active) AlertRed.copy(alpha = 0.2f) else CyberBlack,
-                                        RoundedCornerShape(8.dp)
-                                    )
-                                    .border(
-                                        1.dp,
-                                        if (active) AlertRed else BorderGrey,
-                                        RoundedCornerShape(8.dp)
-                                    )
-                                    .clickable { sosType = type }
-                                    .padding(horizontal = 8.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = type.replace("_", " "),
-                                    color = if (active) Color.White else Color.White.copy(alpha = 0.6f),
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
-                        }
-                    }
-
-                    // Description text input
-                    OutlinedTextField(
-                        value = sosDescription,
-                        onValueChange = { sosDescription = it },
-                        label = { Text(getLabel("sos_desc"), color = Color.White.copy(alpha = 0.4f)) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AlertRed,
-                            unfocusedBorderColor = BorderGrey,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                        maxLines = 3
-                    )
+    // Диалог SOS
+    if (showReportSos) {
+        SosReportDialog(
+            L           = L,
+            initialType = sosType,
+            onTypeChange = { sosType = it },
+            description  = sosDesc,
+            onDescChange = { sosDesc = it },
+            onDismiss    = { showReportSos = false },
+            onConfirm    = {
+                if (sosDesc.isNotBlank()) {
+                    viewModel.reportClimateSos(sosType, sosDesc)
+                    sosDesc = ""
+                    showReportSos = false
                 }
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (sosDescription.isNotBlank()) {
-                            viewModel.reportClimateSos(sosType, sosDescription)
-                            sosDescription = ""
-                            showReportSosDialog = false
-                        }
-                    }
-                ) {
-                    Text(text = getLabel("publish"), color = AlertRed, fontWeight = FontWeight.Black)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showReportSosDialog = false }) {
-                    Text(text = getLabel("cancel"), color = Color.White.copy(alpha = 0.6f))
-                }
-            }
         )
     }
 
-    // DIALOG: ADD NEW AGRICULTURAL PLOT
-    if (showAddPlotDialog) {
-        AlertDialog(
-            onDismissRequest = { showAddPlotDialog = false },
-            title = {
-                Text(
-                    text = getLabel("add_plot"),
-                    color = NeonGreen,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-            },
-            containerColor = DeepCharcoal,
-            shape = RoundedCornerShape(20.dp),
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = plotName,
-                        onValueChange = { plotName = it },
-                        label = { Text("Plot Name (e.g., Ararat Valley B)", color = Color.White.copy(alpha = 0.4f)) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeonGreen,
-                            unfocusedBorderColor = BorderGrey,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = cropType,
-                        onValueChange = { cropType = it },
-                        label = { Text("Crop Type (e.g., Wheat, Grape)", color = Color.White.copy(alpha = 0.4f)) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeonGreen,
-                            unfocusedBorderColor = BorderGrey,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = plotLocation,
-                        onValueChange = { plotLocation = it },
-                        label = { Text("Location (e.g., Ararat Valley, Yerevan)", color = Color.White.copy(alpha = 0.4f)) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeonGreen,
-                            unfocusedBorderColor = BorderGrey,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = plotSize,
-                        onValueChange = { plotSize = it },
-                        label = { Text("Area (Hectares)", color = Color.White.copy(alpha = 0.4f)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeonGreen,
-                            unfocusedBorderColor = BorderGrey,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+    // Диалог добавления участка
+    if (showAddPlot) {
+        AddPlotDialog(
+            L            = L,
+            name         = plotName,    onNameChange     = { plotName     = it },
+            crop         = plotCrop,    onCropChange     = { plotCrop     = it },
+            location     = plotLocation, onLocationChange = { plotLocation = it },
+            size         = plotSize,    onSizeChange     = { plotSize     = it },
+            onDismiss    = { showAddPlot = false },
+            onConfirm    = {
+                if (plotName.isNotBlank() && plotLocation.isNotBlank()) {
+                    viewModel.addNewPlot(plotName, plotCrop, plotLocation, plotSize.toDoubleOrNull() ?: 1.0)
+                    plotName = ""; plotCrop = ""; plotLocation = ""; plotSize = ""
+                    showAddPlot = false
                 }
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (plotName.isNotBlank() && plotLocation.isNotBlank()) {
-                            val hectares = plotSize.toDoubleOrNull() ?: 1.0
-                            viewModel.addNewPlot(plotName, cropType, plotLocation, hectares)
-                            plotName = ""
-                            showAddPlotDialog = false
-                        }
-                    }
-                ) {
-                    Text(text = "Register", color = NeonGreen, fontWeight = FontWeight.Black)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddPlotDialog = false }) {
-                    Text(text = getLabel("cancel"), color = Color.White.copy(alpha = 0.6f))
-                }
-            }
         )
     }
 }
 
-// =========================================================================================
-// TAB 1: PLOTS MANAGEMENT SCREEN (SOIL MOISTURE, HEALTH METRICS, REGISTER SENSORS)
-// =========================================================================================
+// ── Оверлей участка ──────────────────────────────────────────────────────────
 @Composable
-fun PlotsTabScreen(
+private fun BoxScope.PlotInfoOverlay(
+    plot: PlotEntity,
+    aqiState: UiState<AqiCacheEntity>,
     viewModel: EcoViewModel,
-    getLabel: (String) -> String
+    L: (String) -> String,
+    onClose: () -> Unit,
 ) {
-    val plots by viewModel.plotsList.collectAsStateWithLifecycle()
-    var isRegisterDialogExpanded by remember { mutableStateOf(false) }
+    Box(
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(horizontal = 16.dp, vertical = 110.dp)
+            .fillMaxWidth()
+            .background(DeepCharcoal.copy(alpha = 0.95f), RoundedCornerShape(20.dp))
+            .border(1.dp, MutedTeal, RoundedCornerShape(20.dp))
+            .padding(16.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    Text(text = plot.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text(text = "${L("coord_label")}: ${String.format("%.4f", plot.latitude)}, ${String.format("%.4f", plot.longitude)}", color = TextMuted, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                }
+                IconButton(onClick = onClose) {
+                    Icon(Icons.Default.Close, L("close"), tint = Color.White.copy(alpha = 0.6f))
+                }
+            }
 
+            HorizontalDivider(color = BorderGrey, thickness = 0.5.dp)
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                MetricBox(label = L("soil_moisture"), value = "${plot.soilMoisture.toInt()}%", valueColor = SoftTeal, modifier = Modifier.weight(1f))
+                MetricBox(label = L("health_rating"), value = "${plot.healthScore}%",  valueColor = NeonGreen, modifier = Modifier.weight(1f))
+            }
+
+            // AQI-блок
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(CyberBlack, RoundedCornerShape(12.dp))
+                    .border(1.dp, BorderGrey, RoundedCornerShape(12.dp))
+                    .padding(12.dp),
+            ) {
+                when (val state = aqiState) {
+                    is UiState.Loading -> {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            CircularProgressIndicator(modifier = Modifier.size(14.dp), color = NeonGreen, strokeWidth = 2.dp)
+                            Text(text = L("aqi_loading"), fontSize = 11.sp, color = Color.White.copy(alpha = 0.7f), fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                    is UiState.Success -> {
+                        val aqi = state.data
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.CloudSync, "aqi", tint = NeonGreen, modifier = Modifier.size(16.dp))
+                                    Text(text = "${L("aqi_status")}: ${aqi.locationName}", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Text(
+                                    text  = "AQI: ${aqi.aqiValue} [${aqi.levelCode}]",
+                                    color = if (aqi.aqiValue <= 50) NeonGreen else AlertOrange,
+                                    fontSize = 11.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace,
+                                )
+                            }
+                            LinearProgressBar(progress = (aqi.aqiValue / 150f).coerceAtMost(1f), color = if (aqi.aqiValue <= 50) NeonGreen else AlertOrange)
+                            Text(text = viewModel.getLocalizedText(aqi.advisoryEn, aqi.advisoryAm, aqi.advisoryRu), color = Color.White.copy(alpha = 0.8f), fontSize = 10.sp, lineHeight = 14.sp)
+                        }
+                    }
+                    else -> Text(text = L("aqi_idle"), fontSize = 10.sp, color = TextMuted)
+                }
+            }
+        }
+    }
+}
+
+// ── Оверлей SOS ───────────────────────────────────────────────────────────────
+@Composable
+private fun BoxScope.SosInfoOverlay(
+    alert: ClimateSosEntity,
+    viewModel: EcoViewModel,
+    L: (String) -> String,
+    onClose: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(horizontal = 16.dp, vertical = 110.dp)
+            .fillMaxWidth()
+            .background(DeepCharcoal.copy(alpha = 0.95f), RoundedCornerShape(20.dp))
+            .border(1.dp, AlertRed, RoundedCornerShape(20.dp))
+            .padding(16.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(Icons.Default.Warning, "warning", tint = AlertRed, modifier = Modifier.size(18.dp))
+                    Text(text = alert.alertType.replace("_", " "), color = AlertRed, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+                }
+                IconButton(onClick = onClose) {
+                    Icon(Icons.Default.Close, L("close"), tint = Color.White.copy(alpha = 0.6f))
+                }
+            }
+            HorizontalDivider(color = BorderGrey, thickness = 0.5.dp)
+            Text(text = alert.description, color = Color.White, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(text = "BY: ${alert.reportedBy}", color = TextMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                Button(
+                    onClick = { viewModel.resolveSosAlert(alert.id); onClose() },
+                    colors  = ButtonDefaults.buttonColors(containerColor = AlertRed.copy(alpha = 0.2f)),
+                    border  = BorderStroke(1.dp, AlertRed),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    modifier = Modifier.height(26.dp),
+                ) {
+                    Text(text = L("dismiss"), color = AlertRed, fontSize = 8.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                }
+            }
+        }
+    }
+}
+
+// ── Диалог SOS ────────────────────────────────────────────────────────────────
+@Composable
+private fun SosReportDialog(
+    L: (String) -> String,
+    initialType: String,
+    onTypeChange: (String) -> Unit,
+    description: String,
+    onDescChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = L("report_sos"), color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+        containerColor = DeepCharcoal,
+        shape          = RoundedCornerShape(20.dp),
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(text = L("sos_type"), color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    listOf("WATER_SHORTAGE", "PEST_OUTBREAK", "FROST_ALERT", "FIRE_ALERT").forEach { type ->
+                        val active = initialType == type
+                        Box(
+                            modifier = Modifier
+                                .background(if (active) AlertRed.copy(alpha = 0.2f) else CyberBlack, RoundedCornerShape(8.dp))
+                                .border(1.dp, if (active) AlertRed else BorderGrey, RoundedCornerShape(8.dp))
+                                .clickable { onTypeChange(type) }
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                        ) {
+                            Text(text = type.replace("_", " "), color = if (active) Color.White else Color.White.copy(alpha = 0.6f), fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value       = description,
+                    onValueChange = onDescChange,
+                    label       = { Text(L("sos_desc"), color = Color.White.copy(alpha = 0.4f)) },
+                    colors      = OutlinedTextFieldDefaults.colors(focusedBorderColor = AlertRed, unfocusedBorderColor = BorderGrey, focusedTextColor = Color.White, unfocusedTextColor = Color.White),
+                    modifier    = Modifier.fillMaxWidth(),
+                    maxLines    = 3,
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(L("publish"), color = AlertRed, fontWeight = FontWeight.Black) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(L("cancel"), color = Color.White.copy(alpha = 0.6f)) } },
+    )
+}
+
+// ── Диалог добавления участка ─────────────────────────────────────────────────
+@Composable
+private fun AddPlotDialog(
+    L: (String) -> String,
+    name: String, onNameChange: (String) -> Unit,
+    crop: String, onCropChange: (String) -> Unit,
+    location: String, onLocationChange: (String) -> Unit,
+    size: String, onSizeChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(L("add_plot"), color = NeonGreen, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+        containerColor = DeepCharcoal,
+        shape          = RoundedCornerShape(20.dp),
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                val fieldColors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonGreen, unfocusedBorderColor = BorderGrey, focusedTextColor = Color.White, unfocusedTextColor = Color.White, unfocusedLabelColor = Color.White.copy(alpha = 0.4f), focusedLabelColor = NeonGreen)
+                OutlinedTextField(value = name,     onValueChange = onNameChange,     label = { Text(L("plot_name_hint")) }, colors = fieldColors, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = crop,     onValueChange = onCropChange,     label = { Text(L("crop_hint")) },     colors = fieldColors, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = location, onValueChange = onLocationChange, label = { Text(L("location_hint")) }, colors = fieldColors, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = size,     onValueChange = onSizeChange,     label = { Text(L("area_hint")) },     colors = fieldColors, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+            }
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(L("register"), color = NeonGreen, fontWeight = FontWeight.Black) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(L("cancel"),   color = Color.White.copy(alpha = 0.6f)) } },
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TAB 1 — УЧАСТКИ
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+fun PlotsTabScreen(viewModel: EcoViewModel, L: (String) -> String) {
+    val plots by viewModel.plotsList.collectAsStateWithLifecycle()
+    var showDialog by remember { mutableStateOf(false) }
     var inputName by remember { mutableStateOf("") }
     var inputCrop by remember { mutableStateOf("") }
-    var inputLoc by remember { mutableStateOf("") }
+    var inputLoc  by remember { mutableStateOf("") }
     var inputSize by remember { mutableStateOf("") }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text(
-                        text = getLabel("title_plots"),
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "REGISTERED SENSORS AND ACTIVE PLOTS",
-                        color = TextMuted,
-                        fontSize = 9.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
+                    Text(text = L("plots_tab"), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "REGISTERED SENSORS AND ACTIVE PLOTS", color = TextMuted, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
                 }
-
-                Button(
-                    onClick = { isRegisterDialogExpanded = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonGreen),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "add",
-                        tint = CyberBlack,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = getLabel("add_plot"),
-                        color = CyberBlack,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
-                    )
+                Button(onClick = { showDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = NeonGreen), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
+                    Icon(Icons.Default.Add, "add", tint = CyberBlack, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(text = L("add_plot"), color = CyberBlack, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                 }
             }
         }
 
         if (plots.isEmpty()) {
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(DeepCharcoal, RoundedCornerShape(16.dp))
-                        .border(1.dp, BorderGrey, RoundedCornerShape(16.dp))
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Agriculture,
-                            contentDescription = "empty",
-                            tint = NeonGreen.copy(alpha = 0.4f),
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Text(
-                            text = getLabel("no_plots"),
-                            color = Color.White.copy(alpha = 0.7f),
-                            textAlign = TextAlign.Center,
-                            fontSize = 12.sp
-                        )
-                    }
-                }
+                EmptyState(icon = Icons.Default.Agriculture, text = L("no_plots"))
             }
         } else {
             items(plots, key = { it.id }) { plot ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(DeepCharcoal, RoundedCornerShape(16.dp))
-                        .border(1.dp, BorderGrey, RoundedCornerShape(16.dp))
-                        .padding(16.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = plot.name,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
-                                )
-                                Text(
-                                    text = "COORD: ${String.format("%.4f", plot.latitude)}, ${String.format("%.4f", plot.longitude)} // ${plot.locationName}",
-                                    color = TextMuted,
-                                    fontSize = 9.sp,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
-
-                            // Delete button
-                            IconButton(onClick = { viewModel.deletePlot(plot.id) }) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Delete",
-                                    tint = AlertRed,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-
-                        Divider(color = BorderGrey, thickness = 0.5.dp)
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Info Grid
-                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                Column {
-                                    Text(text = "CROP SPECIES", color = TextMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
-                                    Text(text = plot.cropType, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Column {
-                                    Text(text = "FIELD AREA", color = TextMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
-                                    Text(text = "${plot.areaHectares} Hectares", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-
-                            // Circular Soil Indicator Meter
-                            Box(
-                                modifier = Modifier
-                                    .size(54.dp)
-                                    .background(CyberBlack, CircleShape)
-                                    .border(1.dp, BorderGrey, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    progress = { (plot.soilMoisture / 100f).toFloat() },
-                                    modifier = Modifier.fillMaxSize(),
-                                    color = if (plot.soilMoisture >= 40.0) SoftTeal else AlertOrange,
-                                    strokeWidth = 3.dp,
-                                    trackColor = Color.White.copy(alpha = 0.05f),
-                                )
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "${plot.soilMoisture.toInt()}%",
-                                        color = Color.White,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Black,
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                    Text(
-                                        text = "SOIL",
-                                        color = TextMuted,
-                                        fontSize = 7.sp,
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                }
-                            }
-                        }
-
-                        // Progress Score bar for vegetative health rating
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(CyberBlack, RoundedCornerShape(8.dp))
-                                .padding(10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .background(
-                                            if (plot.healthScore >= 90) NeonGreen else AlertOrange,
-                                            CircleShape
-                                        )
-                                )
-                                Text(
-                                    text = getLabel("health_rating").uppercase(),
-                                    color = Color.White.copy(alpha = 0.8f),
-                                    fontSize = 9.sp,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
-                            Text(
-                                text = "${plot.healthScore}% [${if (plot.healthScore >= 90) getLabel("healthy") else "STRESSED"}]",
-                                color = if (plot.healthScore >= 90) NeonGreen else AlertOrange,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Black,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                    }
-                }
+                PlotCard(plot = plot, L = L, onDelete = { viewModel.deletePlot(plot.id) })
             }
         }
     }
 
-    // NEW PLOT INLINE DIALOG EXPANSION
-    if (isRegisterDialogExpanded) {
+    if (showDialog) {
         AlertDialog(
-            onDismissRequest = { isRegisterDialogExpanded = false },
-            title = {
-                Text(
-                    text = getLabel("add_plot"),
-                    color = NeonGreen,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
-                )
-            },
+            onDismissRequest = { showDialog = false },
+            title = { Text(L("add_plot"), color = NeonGreen, fontWeight = FontWeight.Bold, fontSize = 15.sp) },
             containerColor = DeepCharcoal,
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = inputName,
-                        onValueChange = { inputName = it },
-                        label = { Text("Plot Title") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            focusedBorderColor = NeonGreen
-                        )
-                    )
-                    OutlinedTextField(
-                        value = inputCrop,
-                        onValueChange = { inputCrop = it },
-                        label = { Text("Crop Type") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            focusedBorderColor = NeonGreen
-                        )
-                    )
-                    OutlinedTextField(
-                        value = inputLoc,
-                        onValueChange = { inputLoc = it },
-                        label = { Text("Province Delta") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            focusedBorderColor = NeonGreen
-                        )
-                    )
-                    OutlinedTextField(
-                        value = inputSize,
-                        onValueChange = { inputSize = it },
-                        label = { Text("Sizing in Hectares") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            focusedBorderColor = NeonGreen
-                        )
-                    )
+                    val fc = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, focusedBorderColor = NeonGreen, unfocusedBorderColor = BorderGrey, unfocusedTextColor = Color.White.copy(alpha = 0.7f))
+                    OutlinedTextField(inputName, { inputName = it }, label = { Text(L("plot_name_hint"), color = Color.White.copy(alpha = 0.4f)) }, colors = fc)
+                    OutlinedTextField(inputCrop, { inputCrop = it }, label = { Text(L("crop_hint"),      color = Color.White.copy(alpha = 0.4f)) }, colors = fc)
+                    OutlinedTextField(inputLoc,  { inputLoc  = it }, label = { Text(L("location_hint"), color = Color.White.copy(alpha = 0.4f)) }, colors = fc)
+                    OutlinedTextField(inputSize, { inputSize = it }, label = { Text(L("area_hint"),     color = Color.White.copy(alpha = 0.4f)) }, colors = fc, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (inputName.isNotBlank() && inputLoc.isNotBlank()) {
-                            val h = inputSize.toDoubleOrNull() ?: 2.0
-                            viewModel.addNewPlot(inputName, inputCrop, inputLoc, h)
-                            inputName = ""
-                            inputCrop = ""
-                            inputLoc = ""
-                            inputSize = ""
-                            isRegisterDialogExpanded = false
-                        }
+                TextButton(onClick = {
+                    if (inputName.isNotBlank() && inputLoc.isNotBlank()) {
+                        viewModel.addNewPlot(inputName, inputCrop, inputLoc, inputSize.toDoubleOrNull() ?: 2.0)
+                        inputName = ""; inputCrop = ""; inputLoc = ""; inputSize = ""
+                        showDialog = false
                     }
-                ) {
-                    Text(text = "Save", color = NeonGreen)
-                }
+                }) { Text(L("save"), color = NeonGreen) }
             },
-            dismissButton = {
-                TextButton(onClick = { isRegisterDialogExpanded = false }) {
-                    Text(text = "Cancel", color = Color.White.copy(alpha = 0.5f))
-                }
-            }
+            dismissButton = { TextButton(onClick = { showDialog = false }) { Text(L("cancel"), color = Color.White.copy(alpha = 0.5f)) } },
         )
     }
 }
 
-// =========================================================================================
-// TAB 2: AI PLANT SCAN SCREEN (COMPUTER VISION DISEASES CLASSIFICATION)
-// =========================================================================================
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScanTabScreen(
-    viewModel: EcoViewModel,
-    getLabel: (String) -> String
-) {
+private fun PlotCard(plot: PlotEntity, L: (String) -> String, onDelete: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxWidth()
+            .background(DeepCharcoal, RoundedCornerShape(16.dp))
+            .border(1.dp, BorderGrey, RoundedCornerShape(16.dp))
+            .padding(16.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    Text(plot.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("${String.format("%.4f", plot.latitude)}, ${String.format("%.4f", plot.longitude)} // ${plot.locationName}", color = TextMuted, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, L("delete"), tint = AlertRed, modifier = Modifier.size(18.dp))
+                }
+            }
+            HorizontalDivider(color = BorderGrey, thickness = 0.5.dp)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column {
+                        Text("CROP", color = TextMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                        Text(plot.cropType, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Column {
+                        Text("AREA", color = TextMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                        Text("${plot.areaHectares} ha", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Box(modifier = Modifier.size(54.dp).background(CyberBlack, CircleShape).border(1.dp, BorderGrey, CircleShape), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(progress = { (plot.soilMoisture / 100f).toFloat() }, modifier = Modifier.fillMaxSize(), color = if (plot.soilMoisture >= 40.0) SoftTeal else AlertOrange, strokeWidth = 3.dp, trackColor = Color.White.copy(alpha = 0.05f))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("${plot.soilMoisture.toInt()}%", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+                        Text("SOIL", color = TextMuted, fontSize = 7.sp, fontFamily = FontFamily.Monospace)
+                    }
+                }
+            }
+            Row(modifier = Modifier.fillMaxWidth().background(CyberBlack, RoundedCornerShape(8.dp)).padding(10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(6.dp).background(if (plot.healthScore >= 90) NeonGreen else AlertOrange, CircleShape))
+                    Text(L("health_rating").uppercase(), color = Color.White.copy(alpha = 0.8f), fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                }
+                Text(
+                    "${plot.healthScore}% [${if (plot.healthScore >= 90) L("healthy") else "STRESSED"}]",
+                    color = if (plot.healthScore >= 90) NeonGreen else AlertOrange,
+                    fontSize = 11.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TAB 2 — AI СКАН
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+fun ScanTabScreen(viewModel: EcoViewModel, L: (String) -> String) {
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
-    val history by viewModel.diseaseHistoryList.collectAsStateWithLifecycle()
-    
-    var activeCropSelection by remember { mutableStateOf("Tomato") }
+    val history   by viewModel.diseaseHistoryList.collectAsStateWithLifecycle()
+    var selectedCrop by remember { mutableStateOf("Tomato") }
     val cropOptions = listOf("Tomato", "Wheat", "Grape", "Potato")
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
             Column {
-                Text(
-                    text = getLabel("scan_plant"),
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Quick crop health check",
-                    color = TextMuted,
-                    fontSize = 9.sp,
-                    fontFamily = FontFamily.Monospace
-                )
+                Text(L("scan_plant"), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("COMPUTER VISION DISEASE DETECTION", color = TextMuted, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
             }
         }
 
-        // Active Scan control Box area
         item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(DeepCharcoal, RoundedCornerShape(20.dp))
-                    .border(1.dp, BorderGrey, RoundedCornerShape(20.dp))
-                    .padding(16.dp)
-            ) {
+            Box(modifier = Modifier.fillMaxWidth().background(DeepCharcoal, RoundedCornerShape(20.dp)).border(1.dp, BorderGrey, RoundedCornerShape(20.dp)).padding(16.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = getLabel("choose_crop"),
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    // Selection Segment row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
+                    Text(L("choose_crop"), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         cropOptions.forEach { option ->
-                            val isSelected = activeCropSelection == option
+                            val sel = selectedCrop == option
                             Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .background(
-                                        if (isSelected) NeonGreen.copy(alpha = 0.2f) else CyberBlack,
-                                        RoundedCornerShape(8.dp)
-                                    )
-                                    .border(
-                                        1.dp,
-                                        if (isSelected) NeonGreen else BorderGrey,
-                                        RoundedCornerShape(8.dp)
-                                    )
-                                    .clickable { activeCropSelection = option }
+                                modifier = Modifier.weight(1f)
+                                    .background(if (sel) NeonGreen.copy(alpha = 0.2f) else CyberBlack, RoundedCornerShape(8.dp))
+                                    .border(1.dp, if (sel) NeonGreen else BorderGrey, RoundedCornerShape(8.dp))
+                                    .clickable { selectedCrop = option }
                                     .padding(vertical = 8.dp),
-                                contentAlignment = Alignment.Center
+                                contentAlignment = Alignment.Center,
                             ) {
-                                Text(
-                                    text = option,
-                                    color = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
-                                    fontSize = 11.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Text(option, color = if (sel) Color.White else Color.White.copy(alpha = 0.6f), fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
-
-                    // Scan Leaf drawing graphical preview & loading scanner animation
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(140.dp)
-                            .background(CyberBlack, RoundedCornerShape(12.dp))
-                            .border(1.dp, BorderGrey, RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    // Превью камеры
+                    Box(modifier = Modifier.fillMaxWidth().height(140.dp).background(CyberBlack, RoundedCornerShape(12.dp)).border(1.dp, BorderGrey, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
                         if (scanState is UiState.Loading) {
-
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 CircularProgressIndicator(color = NeonGreen)
-                                Text(
-                                    text = "Scanning image...",
-                                    color = NeonGreen,
-                                    fontSize = 8.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Text(L("scanning"), color = NeonGreen, fontSize = 8.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                             }
-
-                            // Glowing green scanning bar overlay effect
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(2.dp)
-                                    .background(NeonGreen)
-                                    .align(Alignment.Center)
-                            )
                         } else {
-                            // Static drawing vector graphic representing agricultural leaf scanning
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.FilterFrames,
-                                    contentDescription = "leaf",
-                                    tint = MutedTeal.copy(alpha = 0.8f),
-                                    modifier = Modifier.size(44.dp)
-                                )
-                                Text(
-                                    text = "Camera preview",
-                                    color = TextMuted,
-                                    fontSize = 8.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold
-                                )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Default.FilterFrames, "camera", tint = MutedTeal.copy(alpha = 0.8f), modifier = Modifier.size(44.dp))
+                                Text(L("camera_preview"), color = TextMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
                             }
                         }
                     }
-
-                    // Button trigger FastAPI diagnose
                     Button(
-                        onClick = { viewModel.runDiseaseDiagnosis(activeCropSelection) },
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonGreen),
-                        shape = RoundedCornerShape(12.dp),
+                        onClick  = { viewModel.runDiseaseDiagnosis(selectedCrop) },
+                        colors   = ButtonDefaults.buttonColors(containerColor = NeonGreen),
+                        shape    = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = scanState !is UiState.Loading
+                        enabled  = scanState !is UiState.Loading,
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(imageVector = Icons.Default.QrCodeScanner, contentDescription = "scan", tint = CyberBlack)
-                            Text(
-                                text = getLabel("trigger_scan").uppercase(),
-                                color = CyberBlack,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.QrCodeScanner, "scan", tint = CyberBlack)
+                            Text(L("trigger_scan").uppercase(), color = CyberBlack, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                         }
                     }
                 }
             }
         }
 
-        // Active output diagnostic cards if success!
+        // Результат диагностики
         item {
-            AnimatedVisibility(
-                visible = scanState is UiState.Success,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                if (scanState is UiState.Success) {
-                    val report = (scanState as UiState.Success<PlantDiseaseEntity>).data
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(DeepCharcoal, RoundedCornerShape(20.dp))
-                            .border(2.dp, NeonGreen, RoundedCornerShape(20.dp))
-                            .padding(16.dp)
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        text = "${report.cropName}: ${report.suspectedDisease}",
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp
-                                    )
-                                    Text(
-                                        text = "Scan confidence",
-                                        color = TextMuted,
-                                        fontSize = 8.sp,
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                }
-
-                                Box(
-                                    modifier = Modifier
-                                        .background(NeonGreen.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Text(
-                                        text = "${(report.confidence * 100).toInt()}% conf",
-                                        color = NeonGreen,
-                                        fontWeight = FontWeight.Black,
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 11.sp
-                                    )
-                                }
-                            }
-
-                            Divider(color = BorderGrey, thickness = 0.5.dp)
-
-                            // Localized custom diagnosis text block!
-                            Text(
-                                text = getLabel("diagnosis").uppercase(),
-                                color = TextMuted,
-                                fontSize = 9.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = viewModel.getLocalizedText(report.diagnosisEn, report.diagnosisAm, report.diagnosisRu),
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                lineHeight = 16.sp
-                            )
-
-                            // Bio-treatments
-                            Text(
-                                text = "Recommended treatment",
-                                color = TextMuted,
-                                fontSize = 9.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(CyberBlack, RoundedCornerShape(8.dp))
-                                    .padding(10.dp)
-                            ) {
-                                Text(
-                                    text = viewModel.getLocalizedText(report.treatmentsEn, report.treatmentsAm, report.treatmentsRu),
-                                    color = NeonGreen,
-                                    fontSize = 11.sp,
-                                    lineHeight = 15.sp
-                                )
-                            }
-
-                            // Dismiss back
-                            TextButton(
-                                onClick = { viewModel.resetScanState() },
-                                modifier = Modifier.align(Alignment.End)
-                            ) {
-                                Text(text = "Clear result", color = Color.White.copy(alpha = 0.7f))
-                            }
-                        }
-                    }
+            AnimatedVisibility(visible = scanState is UiState.Success, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+                (scanState as? UiState.Success<PlantDiseaseEntity>)?.data?.let { report ->
+                    DiagnosisResultCard(report = report, viewModel = viewModel, L = L)
                 }
             }
         }
 
-        // SCANS ARCHIVE LOGS FROM DATABASE (OFFLINE-FIRST)
-        item {
-            Text(
-                text = getLabel("history_scans"),
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        item { Text(L("history_scans"), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
 
         if (history.isEmpty()) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(DeepCharcoal, RoundedCornerShape(12.dp))
-                        .border(1.dp, BorderGrey, RoundedCornerShape(12.dp))
-                        .padding(20.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = getLabel("no_scans"),
-                        color = TextMuted,
-                        fontSize = 11.sp,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
+            item { EmptyState(icon = Icons.Default.BiotechOutlined, text = L("no_scans")) }
         } else {
             items(history) { report ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(DeepCharcoal, RoundedCornerShape(12.dp))
-                        .border(1.dp, BorderGrey, RoundedCornerShape(12.dp))
-                        .padding(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                Box(modifier = Modifier.fillMaxWidth().background(DeepCharcoal, RoundedCornerShape(12.dp)).border(1.dp, BorderGrey, RoundedCornerShape(12.dp)).padding(12.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column {
-                            Text(
-                                text = "${report.cropName} - ${report.suspectedDisease}",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
-                            )
-                            Text(
-                                text = "LOCAL SCAN: DB LOCAL RECORD // CONF: ${(report.confidence * 100).toInt()}%",
-                                color = TextMuted,
-                                fontSize = 8.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
+                            Text("${report.cropName} — ${report.suspectedDisease}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("${L("conf_label")}: ${(report.confidence * 100).toInt()}%", color = TextMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
                         }
-
-                        // Icon indicating offline status
-                        Icon(
-                            imageVector = Icons.Default.OfflineBolt,
-                            contentDescription = "offline synced",
-                            tint = NeonGreen.copy(alpha = 0.8f),
-                            modifier = Modifier.size(16.dp)
-                        )
+                        Icon(Icons.Default.OfflineBolt, "offline", tint = NeonGreen.copy(alpha = 0.8f), modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -1760,257 +875,213 @@ fun ScanTabScreen(
     }
 }
 
-// =========================================================================================
-// TAB 3: SETTINGS & ARCHITECTURE SPECS & METADATA OVERVIEW
-// =========================================================================================
 @Composable
-fun SettingsTabScreen(
-    viewModel: EcoViewModel,
-    getLabel: (String) -> String
-) {
-    val activeLanguage by viewModel.activeLanguage.collectAsStateWithLifecycle()
-    val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
+private fun DiagnosisResultCard(report: PlantDiseaseEntity, viewModel: EcoViewModel, L: (String) -> String) {
+    Box(modifier = Modifier.fillMaxWidth().background(DeepCharcoal, RoundedCornerShape(20.dp)).border(2.dp, NeonGreen, RoundedCornerShape(20.dp)).padding(16.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    Text("${report.cropName}: ${report.suspectedDisease}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text("Confidence", color = TextMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                }
+                Box(modifier = Modifier.background(NeonGreen.copy(alpha = 0.15f), RoundedCornerShape(10.dp)).padding(horizontal = 8.dp, vertical = 4.dp)) {
+                    Text("${(report.confidence * 100).toInt()}% ${L("conf_label")}", color = NeonGreen, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                }
+            }
+            HorizontalDivider(color = BorderGrey, thickness = 0.5.dp)
+            Text(L("diagnosis").uppercase(), color = TextMuted, fontSize = 9.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+            Text(viewModel.getLocalizedText(report.diagnosisEn, report.diagnosisAm, report.diagnosisRu), color = Color.White, fontSize = 12.sp, lineHeight = 16.sp)
+            Text("TREATMENT", color = TextMuted, fontSize = 9.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+            Box(modifier = Modifier.fillMaxWidth().background(CyberBlack, RoundedCornerShape(8.dp)).padding(10.dp)) {
+                Text(viewModel.getLocalizedText(report.treatmentsEn, report.treatmentsAm, report.treatmentsRu), color = NeonGreen, fontSize = 11.sp, lineHeight = 15.sp)
+            }
+            TextButton(onClick = { viewModel.resetScanState() }, modifier = Modifier.align(Alignment.End)) {
+                Text(L("clear_result"), color = Color.White.copy(alpha = 0.7f))
+            }
+        }
+    }
+}
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+// ─────────────────────────────────────────────────────────────────────────────
+// TAB 3 — НАСТРОЙКИ
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+fun SettingsTabScreen(viewModel: EcoViewModel, L: (String) -> String) {
+    val activeLanguage by viewModel.activeLanguage.collectAsStateWithLifecycle()
+    val isSyncing      by viewModel.isSyncing.collectAsStateWithLifecycle()
+
+    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
             Column {
-                Text(
-                    text = getLabel("title_settings"),
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "SYSTEM CONFIGURATOR, LOCALES & SYSTEM BLUEPRINTS",
-                    color = TextMuted,
-                    fontSize = 9.sp,
-                    fontFamily = FontFamily.Monospace
-                )
+                Text(L("settings_tab"), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("SYSTEM CONFIG, LOCALE & ARCHITECTURE", color = TextMuted, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
             }
         }
 
-        // Language Switcher Options
+        // Языковой переключатель
         item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(DeepCharcoal, RoundedCornerShape(16.dp))
-                    .border(1.dp, BorderGrey, RoundedCornerShape(16.dp))
-                    .padding(16.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(imageVector = Icons.Default.Language, contentDescription = "language", tint = NeonGreen)
-                        Text(
-                            text = getLabel("lang_switch"),
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        val languages = listOf("en" to "ENGLISH", "am" to "ՀԱՅԵՐԵՆ", "ru" to "РУССКИЙ")
-                        languages.forEach { (code, name) ->
-                            val isSelected = activeLanguage == code
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .background(
-                                        if (isSelected) NeonGreen.copy(alpha = 0.2f) else CyberBlack,
-                                        RoundedCornerShape(8.dp)
-                                    )
-                                    .border(
-                                        1.dp,
-                                        if (isSelected) NeonGreen else BorderGrey,
-                                        RoundedCornerShape(8.dp)
-                                    )
-                                    .clickable { viewModel.setLanguage(code) }
-                                    .padding(vertical = 10.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = name,
-                                    color = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
-                                    fontSize = 10.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+            SettingsCard {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.Language, "language", tint = NeonGreen)
+                    Text(L("lang_switch"), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("en" to "ENGLISH", "am" to "ՀԱՅԵՐԵՆ", "ru" to "РУССКИЙ").forEach { (code, name) ->
+                        val sel = activeLanguage == code
+                        Box(
+                            modifier = Modifier.weight(1f)
+                                .background(if (sel) NeonGreen.copy(alpha = 0.2f) else CyberBlack, RoundedCornerShape(8.dp))
+                                .border(1.dp, if (sel) NeonGreen else BorderGrey, RoundedCornerShape(8.dp))
+                                .clickable { viewModel.setLanguage(code) }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(name, color = if (sel) Color.White else Color.White.copy(alpha = 0.6f), fontSize = 10.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
         }
 
-        // Room Cache database syncer trigger
+        // Синхронизация
         item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(DeepCharcoal, RoundedCornerShape(16.dp))
-                    .border(1.dp, BorderGrey, RoundedCornerShape(16.dp))
-                    .padding(16.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(imageVector = Icons.Default.CloudSync, contentDescription = "sync", tint = SoftTeal)
-                        Text(
-                            text = getLabel("sync_local"),
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Text(
-                        text = "Trigger dynamic telemetry broadcast to post offline Room plots metadata into remote clusters.",
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 11.sp,
-                        lineHeight = 15.sp
-                    )
-
-                    Button(
-                        onClick = { viewModel.triggerDatabaseSync() },
-                        colors = ButtonDefaults.buttonColors(containerColor = SoftTeal),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isSyncing
-                    ) {
-                        Text(
-                            text = if (isSyncing) getLabel("sync_in_progress") else "SYNC DATABASES NOW",
-                            color = CyberBlack,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
+            SettingsCard {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.CloudSync, "sync", tint = SoftTeal)
+                    Text(L("sync_local"), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.height(8.dp))
+                Text("Sends pending offline Room data to remote FastAPI clusters.", color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp, lineHeight = 15.sp)
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick  = { viewModel.triggerDatabaseSync() },
+                    colors   = ButtonDefaults.buttonColors(containerColor = SoftTeal),
+                    shape    = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled  = !isSyncing,
+                ) {
+                    Text(if (isSyncing) L("sync_in_progress") else L("sync_now"), color = CyberBlack, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                 }
             }
         }
 
-        // SENIOR SOLUTION ARCHITECT ADVANCED SCHEMAS AND FastAPI COMPILER BLUEPRINTS
+        // Архитектурная схема
         item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(DeepCharcoal, RoundedCornerShape(20.dp))
-                    .border(1.dp, MutedTeal, RoundedCornerShape(20.dp))
-                    .padding(16.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(imageVector = Icons.Default.DeveloperMode, contentDescription = "architect", tint = NeonGreen)
-                        Text(
-                            text = getLabel("sys_architecture"),
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Text(
-                        text = getLabel("architecture_explain"),
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 11.sp,
-                        lineHeight = 15.sp
-                    )
-
-                    Divider(color = BorderGrey, thickness = 0.5.dp)
-
-                    // TEXT DIAGRAM
-                    Text(
-                        text = "ARCHITECTURE BLUEPRINT SCHEMATIC:",
-                        color = NeonGreen,
-                        fontSize = 9.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(CyberBlack, RoundedCornerShape(8.dp))
-                            .border(1.dp, BorderGrey, RoundedCornerShape(8.dp))
-                            .padding(10.dp)
-                    ) {
-                        Text(
-                            text = """
-                            +-------------------------------------------+
-                            |            Jetpack Compose UI             |
-                            +-------------------------------------------+
-                                   |                       ^
-                            User actions (LOCALE)     Stateflows
-                                   v                       |
-                            +-------------------------------------------+
-                            |           EcoViewModel (MVVM)             |
-                            +-------------------------------------------+
-                                   |                       ^
-                                 Query                   Flows
-                                   v                       |
-                            +-------------------------------------------+
-                            |               EcoRepository               |
-                            +-------------------------------------------+
-                                 /                         \
-                          Offline Caching             Remote APIs
-                            /                               \
-                    +----------------+              +----------------+
-                    | SQLite (Room)  |              | FastAPI (Cloud)|
-                    +----------------+              +----------------+
-                    | - Plots        |              | - AI Agronomy  |
-                    | - AQI Cache    |              | - CV Diagnosis |
-                    | - Warnings SOS |              | - Live Pins    |
-                    +----------------+              +----------------+
-                            """.trimIndent(),
-                            color = NeonGreen,
-                            fontSize = 8.sp,
-                            fontFamily = FontFamily.Monospace,
-                            lineHeight = 11.sp
-                        )
-                    }
-
-                    // TFLITE VS BACKEND CLOUD TRADEOFF COMPARATIVE DATA
-                    Text(
-                        text = "EDGE TFLITE VS BACKEND CLOUD INFERENCE:",
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
-                    )
-
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.padding(start = 4.dp)
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(text = "●", color = NeonGreen, fontSize = 10.sp)
-                            Text(
-                                text = "TensorFlow Lite local edge model operates fully offline. Essential for Armenian farm zones with nil network connections.",
-                                color = TextMuted,
-                                fontSize = 10.sp,
-                                lineHeight = 14.sp
-                            )
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(text = "●", color = NeonGreen, fontSize = 10.sp)
-                            Text(
-                                text = "PyTorch Cloud FastAPI models deliver 99.2% accuracy on complex vegetative diseases by processing high density parameters.",
-                                color = TextMuted,
-                                fontSize = 10.sp,
-                                lineHeight = 14.sp
-                            )
-                        }
-                    }
+            SettingsCard(borderColor = MutedTeal) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.DeveloperMode, "arch", tint = NeonGreen)
+                    Text(L("sys_architecture"), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
+                Spacer(Modifier.height(8.dp))
+                Text(L("architecture_explain"), color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp, lineHeight = 15.sp)
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = BorderGrey, thickness = 0.5.dp)
+                Spacer(Modifier.height(8.dp))
+                Text("ARCHITECTURE BLUEPRINT:", color = NeonGreen, fontSize = 9.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                Box(modifier = Modifier.fillMaxWidth().background(CyberBlack, RoundedCornerShape(8.dp)).border(1.dp, BorderGrey, RoundedCornerShape(8.dp)).padding(10.dp)) {
+                    Text(
+                        text = """
++-------------------------------------------+
+|          Jetpack Compose UI               |
++-------------------------------------------+
+       |                       ^
+User actions (LOCALE)      StateFlows
+       v                       |
++-------------------------------------------+
+|           EcoViewModel (MVVM)             |
++-------------------------------------------+
+       |                       ^
+    Calls                   Flows
+       v                       |
++-------------------------------------------+
+|              EcoRepository                |
++-------------------------------------------+
+        /                         \
+ Offline Cache               Remote APIs
+      /                               \
++----------------+          +----------------+
+| Room (SQLite)  |          | FastAPI Cloud  |
++----------------+          +----------------+
+| - plots        |          | - AI agronomy  |
+| - aqi_cache    |          | - CV diagnosis |
+| - sos_alerts   |          | - SOS reports  |
++----------------+          +----------------+""".trimIndent(),
+                        color = NeonGreen, fontSize = 8.sp, fontFamily = FontFamily.Monospace, lineHeight = 11.sp,
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                Text("TFLITE VS CLOUD INFERENCE:", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                Spacer(Modifier.height(6.dp))
+                BulletText(L("tflite_bullet"))
+                Spacer(Modifier.height(4.dp))
+                BulletText(L("cloud_bullet"))
             }
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Переиспользуемые компоненты
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun MetricBox(label: String, value: String, valueColor: Color, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .background(CyberBlack, RoundedCornerShape(12.dp))
+            .border(1.dp, BorderGrey, RoundedCornerShape(12.dp))
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(text = label.uppercase(), color = TextMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+        Spacer(Modifier.height(4.dp))
+        Text(text = value, color = valueColor, fontSize = 18.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+    }
+}
+
+@Composable
+private fun LinearProgressBar(progress: Float, color: Color) {
+    Box(modifier = Modifier.fillMaxWidth().height(5.dp).background(BorderGrey, RoundedCornerShape(4.dp))) {
+        Box(modifier = Modifier.fillMaxWidth(progress).fillMaxHeight().background(color, RoundedCornerShape(4.dp)))
+    }
+}
+
+@Composable
+private fun EmptyState(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(DeepCharcoal, RoundedCornerShape(16.dp))
+            .border(1.dp, BorderGrey, RoundedCornerShape(16.dp))
+            .padding(24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(icon, "empty", tint = NeonGreen.copy(alpha = 0.4f), modifier = Modifier.size(48.dp))
+            Text(text, color = Color.White.copy(alpha = 0.7f), textAlign = TextAlign.Center, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun SettingsCard(borderColor: Color = BorderGrey, content: @Composable ColumnScope.() -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(DeepCharcoal, RoundedCornerShape(16.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(16.dp))
+            .padding(16.dp),
+    ) {
+        Column(content = content)
+    }
+}
+
+@Composable
+private fun BulletText(text: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("●", color = NeonGreen, fontSize = 10.sp)
+        Text(text, color = TextMuted, fontSize = 10.sp, lineHeight = 14.sp)
     }
 }

@@ -5,46 +5,42 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 /**
- * Senior Architect Design Specification - FastAPI Integration & Custom Pipeline:
+ * EcoRepository — единственный источник правды для UI.
  *
- * 1. Computer Vision Diagnosis:
- *    - Route: `POST /api/v1/cv/diagnose`
- *    - Payload: MultipartForm (image binary data) or JSON with base64 image encoding.
- *    - Header: `Accept-Language` (either "en", "am", or "ru") for localized response schemas.
+ * Стратегия offline-first:
+ *  1. Сначала проверяем локальный Room-кэш.
+ *  2. Если данные свежие (TTL не истёк) — возвращаем их без сетевого запроса.
+ *  3. Если кэш пустой или устаревший — идём в сеть, сохраняем в Room, возвращаем.
  *
- * 2. AQI Forecast & Insights:
- *    - Route: `GET /api/v1/aqi/insights?location={location_name}`
- *    - Response: JSON with PM2.5, PM10, AQI index, and multilingual advisory objects.
+ * Сетевой слой (TODO для реального бэкенда):
+ *  Замените блоки "// NETWORK STUB" на вызовы Retrofit-сервиса.
+ *  Интерфейс FastAPI описан в комментарии ниже.
  *
- * 3. AI Climate Agronomy Advice:
- *    - Route: `GET /api/v1/agronomy/advice/{plot_id}?lang={lang_code}`
- *    - Generates personalized recommendations (Gemini flash API based) according to dynamic soil moisture
- *      indicators and localized climates.
- *
- * 4. Crowdsourced SOS Environmental Mapping:
- *    - Route: `POST /api/v1/sos/report` & `GET /api/v1/sos/alerts`
- *    - Integrates with spatial database parameters for real-time localized warnings.
- *
- * Tradeoffs: Edge TensorFlow Lite vs Cloud/Backend Inference:
- *  - Edge TFLite: Zero latency, offline-capable (perfect for mountain/remote Armenian farm zones),
- *    zero backend compute billing, but limited in model complexity and requires APK updates to update the model.
- *  - Cloud Inference (FastAPI + PyTorch/TensorFlow): Unlimited parameters, dynamic context (can incorporate local weather
- *    and soil forecasts), easy updates, but requires active high-speed internet and increases server compute hosting bills.
+ * FastAPI endpoints:
+ *  POST /api/v1/diagnosis/plant      — мультипарт с изображением
+ *  GET  /api/v1/aqi/insights         — ?lat=&lon=&locale=
+ *  POST /api/v1/agronomy/advice      — JSON с параметрами участка
+ *  POST /api/v1/sos/reports          — создать SOS-алерт
+ *  GET  /api/v1/sos/reports          — ?bbox=&page=&page_size=
  */
 class EcoRepository(
     private val plotDao: PlotDao,
     private val aqiCacheDao: AqiCacheDao,
     private val plantDiseaseDao: PlantDiseaseDao,
-    private val climateSosDao: ClimateSosDao
+    private val climateSosDao: ClimateSosDao,
 ) {
-    // ----------------------------------------------------
-    // User Plots Methods
-    // ----------------------------------------------------
+
+    // ── TTL-константы ──────────────────────────────────────────────────────
+    private val AQI_TTL_URBAN_MS  = 15 * 60 * 1_000L   // 15 минут
+    private val AQI_TTL_RURAL_MS  = 30 * 60 * 1_000L   // 30 минут
+
+    // ── Участки ───────────────────────────────────────────────────────────
     val allPlots: Flow<List<PlotEntity>> = plotDao.getAllPlots()
 
-    suspend fun insertPlot(plot: PlotEntity) = withContext(Dispatchers.IO) {
+    suspend fun insertPlot(plot: PlotEntity): Long = withContext(Dispatchers.IO) {
         plotDao.insertPlot(plot)
     }
 
@@ -56,12 +52,10 @@ class EcoRepository(
         plotDao.deletePlotById(id)
     }
 
-    // ----------------------------------------------------
-    // Climate SOS Alerts Methods
-    // ----------------------------------------------------
+    // ── SOS-алерты ────────────────────────────────────────────────────────
     val allSosAlerts: Flow<List<ClimateSosEntity>> = climateSosDao.getAllSosAlerts()
 
-    suspend fun insertSosAlert(alert: ClimateSosEntity) = withContext(Dispatchers.IO) {
+    suspend fun insertSosAlert(alert: ClimateSosEntity): Long = withContext(Dispatchers.IO) {
         climateSosDao.insertSosAlert(alert)
     }
 
@@ -73,12 +67,10 @@ class EcoRepository(
         climateSosDao.deleteSosAlertById(id)
     }
 
-    // ----------------------------------------------------
-    // Plant Disease History Methods
-    // ----------------------------------------------------
+    // ── Болезни растений ──────────────────────────────────────────────────
     val allDiseases: Flow<List<PlantDiseaseEntity>> = plantDiseaseDao.getAllDiseases()
 
-    suspend fun insertDiseaseReport(disease: PlantDiseaseEntity) = withContext(Dispatchers.IO) {
+    suspend fun insertDiseaseReport(disease: PlantDiseaseEntity): Long = withContext(Dispatchers.IO) {
         plantDiseaseDao.insertDiseaseReport(disease)
     }
 
@@ -86,129 +78,153 @@ class EcoRepository(
         plantDiseaseDao.deleteDiseaseReportById(id)
     }
 
-    // ----------------------------------------------------
-    // AQI Insights (Network Simulation or Local Offline Cache Lookup)
-    // ----------------------------------------------------
-    val allCachedAqi: Flow<List<AqiCacheEntity>> = aqiCacheDao.getAllCachedAqi()
+    // ── AQI ───────────────────────────────────────────────────────────────
 
-    suspend fun fetchAqiInsights(location: String): AqiCacheEntity {
-        return withContext(Dispatchers.IO) {
-            // First check if cached AQI is present and recent (e.g. within 1 hour)
-            val cached = aqiCacheDao.getAqiByLocation(location)
-            if (cached != null && (System.currentTimeMillis() - cached.cachedTimestamp < 3600000)) {
-                return@withContext cached
-            }
-
-            // Simulate FastAPI GET request: /api/v1/aqi/insights?location={location}
-            delay(1000) // Simulating network lag
-            
-            // Build mock localized responses that mimic live FastAPI server outputs
-            val aqiValue = when (location) {
-                "Ararat Valley" -> 42
-                "Yerevan Center" -> 118
-                "Syunik Uplands" -> 28
-                else -> 55
-            }
-            
-            val levelCode = when {
-                aqiValue <= 50 -> "GOOD"
-                aqiValue <= 100 -> "MODERATE"
-                else -> "UNHEALTHY"
-            }
-
-            val pm25 = aqiValue * 0.28
-            val pm10 = aqiValue * 0.54
-            val primaryPollutant = if (aqiValue > 100) "PM2.5" else "O3"
-
-            val advisoryEn = when (levelCode) {
-                "GOOD" -> "Air quality is excellent. Ideal for field work and soil aeration."
-                "MODERATE" -> "Moderate air. Sensitive crops might experience minor particulate dust."
-                else -> "Unhealthy air. Alert: Protect greenhouse workers from high particulate index!"
-            }
-
-            val advisoryAm = when (levelCode) {
-                "GOOD" -> "Օդի որակը հիանալի է: Իդեալական է դաշտային աշխատանքների և հողի օդափոխության համար:"
-                "MODERATE" -> "Չափավոր օդ: Զգայուն մշակաբույսերը կարող են ենթարկվել փոշու աննշան ազդեցության:"
-                else -> "Անառողջ օդ: Զգուշացում. Պաշտպանեք ջերմոցային աշխատողներին բարձր փոշուց:"
-            }
-
-            val advisoryRu = when (levelCode) {
-                "GOOD" -> "Качество воздуха отличное. Идеально для полевых работ и аэрации почвы."
-                "MODERATE" -> "Умеренное качество. Чувствительные культуры могут незначительно страдать от пыли."
-                else -> "Нездоровая атмосфера. Внимание: защитите рабочих теплиц от высокой концентрации частиц!"
-            }
-
-            val newCache = AqiCacheEntity(
-                location = location,
-                aqiValue = aqiValue,
-                levelCode = levelCode,
-                pm25 = pm25,
-                pm10 = pm10,
-                primaryPollutant = primaryPollutant,
-                advisoryEn = advisoryEn,
-                advisoryAm = advisoryAm,
-                advisoryRu = advisoryRu,
-                cachedTimestamp = System.currentTimeMillis()
-            )
-
-            // Save to Room Cache (Offline-first architecture)
-            aqiCacheDao.insertAqi(newCache)
-            return@withContext newCache
-        }
+    /**
+     * Генерирует геохэш из координат (5 знаков после запятой).
+     * В реальном проекте замените на настоящую геохэш-библиотеку
+     * (например, ch.hsr.geohash или собственную реализацию).
+     */
+    private fun makeGeohash(lat: Double, lon: Double): String {
+        val latR = (lat * 100).roundToInt() / 100.0
+        val lonR = (lon * 100).roundToInt() / 100.0
+        return "${latR}_${lonR}"
     }
 
-    // ----------------------------------------------------
-    // AI Computer Vision Diagnosis Simulation
-    // ----------------------------------------------------
-    suspend fun diagnosePlantDisease(crop: String, suspectedDisease: String? = null): PlantDiseaseEntity {
-        return withContext(Dispatchers.IO) {
-            // Simulate FastAPI call: POST /api/v1/cv/diagnose
-            delay(1200)
+    /**
+     * Получить AQI для заданной геопозиции.
+     * Сначала проверяем кэш, потом идём в сеть.
+     *
+     * @param lat широта
+     * @param lon долгота
+     * @param locationName человекочитаемое название (для отображения)
+     * @param isUrban если true — TTL 15 мин, иначе 30 мин
+     */
+    suspend fun fetchAqiInsights(
+        lat: Double,
+        lon: Double,
+        locationName: String,
+        isUrban: Boolean = true,
+    ): AqiCacheEntity = withContext(Dispatchers.IO) {
+        val now     = System.currentTimeMillis()
+        val geohash = makeGeohash(lat, lon)
 
-            val diseaseName = suspectedDisease ?: when (crop) {
-                "Tomato" -> "Early Blight (Alternaria solani)"
-                "Wheat" -> "Leaf Rust (Puccinia recondita)"
-                "Grape" -> "Powdery Mildew (Uncinula necator)"
-                "Potato" -> "Late Blight (Phytophthora infestans)"
-                else -> "Nutrient Deficiency (Nitrogen)"
-            }
+        // 1. Проверяем кэш
+        val cached = aqiCacheDao.getValidAqi(geohash, now)
+        if (cached != null) return@withContext cached
 
-            val confidence = 0.88 + (Math.random() * 0.10) // 88% - 98%
-            
-            val symptoms = when (crop) {
-                "Tomato" -> "Dark concentric spots on older leaves, yellowing halos."
-                "Wheat" -> "Small, orange-brown pustules on leaves resembling metallic rust."
-                "Grape" -> "White powdery dust coating berries and upper dry stems."
-                else -> "Leaf margins turning yellow with slowed growth rates."
-            }
+        // 2. Очищаем устаревшие записи (housekeeping)
+        aqiCacheDao.deleteExpired(now)
 
-            // High-fidelity multilingual response payloads as returned by the localization-safe FastAPI contract
-            val diagnosisEn = "A high-confidence diagnosis indicates $diseaseName affecting the vegetative foliage."
-            val diagnosisAm = "Բարձր ճշգրտության ախտորոշումը ցույց է տալիս, որ բուսական սաղարթի վրա առկա է $diseaseName:"
-            val diagnosisRu = "Высокоточный диагноз указывает на наличие заболевания $diseaseName на листьях растения."
+        // 3. NETWORK STUB — заменить на Retrofit-вызов:
+        //    val response = apiService.getAqiInsights(lat, lon, locale)
+        delay(900) // симуляция сетевой задержки
 
-            val treatmentsEn = "1. Space crops to improve ventilation.\n2. Apply localized organic copper fungicide.\n3. Implement drip irrigation to avoid wet leaves."
-            val treatmentsAm = "1. Հեռավորություն պահպանեք բույսերի միջև օդափոխության համար:\n2. Կիրառել տեղական օրգանական պղնձի ֆունգիցիդ:\n3. Խուսափեք տերևները թրջելուց՝ օգտագործելով կաթիլային ոռոգում:"
-            val treatmentsRu = "1. Рассадите растения шире для аэрации.\n2. Локально примените органический медный фунгицид.\n3. Перейдите на капельный полив во избежание намокания листьев."
-
-            val report = PlantDiseaseEntity(
-                cropName = crop,
-                suspectedDisease = diseaseName,
-                confidence = confidence,
-                symptomsSummary = symptoms,
-                diagnosisEn = diagnosisEn,
-                diagnosisAm = diagnosisAm,
-                diagnosisRu = diagnosisRu,
-                treatmentsEn = treatmentsEn,
-                treatmentsAm = treatmentsAm,
-                treatmentsRu = treatmentsRu,
-                scannedTimestamp = System.currentTimeMillis(),
-                isLocalScanOnly = false // Simulates successfully synced with backend
-            )
-
-            // Save to local database scanned history for offline-first availability
-            plantDiseaseDao.insertDiseaseReport(report)
-            return@withContext report
+        val aqiValue = when {
+            locationName.contains("Yerevan", ignoreCase = true) -> 118
+            locationName.contains("Ararat",  ignoreCase = true) -> 42
+            locationName.contains("Syunik",  ignoreCase = true) -> 28
+            locationName.contains("Gyumri",  ignoreCase = true) -> 65
+            else -> 55
         }
+        val levelCode = when {
+            aqiValue <= 50  -> "GOOD"
+            aqiValue <= 100 -> "MODERATE"
+            else            -> "UNHEALTHY"
+        }
+
+        val advisoryEn = when (levelCode) {
+            "GOOD"      -> "Air quality is excellent. Ideal for field work and soil aeration."
+            "MODERATE"  -> "Moderate air. Sensitive crops may experience minor particulate dust."
+            else        -> "Unhealthy air. Protect greenhouse workers from high particulate index!"
+        }
+        val advisoryAm = when (levelCode) {
+            "GOOD"      -> "Օդի որակը հիանալի է: Իդեալական է դաշտային աշխատանքների համար:"
+            "MODERATE"  -> "Չափավոր օդ: Զգայուն մշակաբույսերը կարող են ենթարկվել փոշու:"
+            else        -> "Անառողջ օդ: Պաշտպանեք ջերմոցային աշխատողներին:"
+        }
+        val advisoryRu = when (levelCode) {
+            "GOOD"      -> "Качество воздуха отличное. Идеально для полевых работ."
+            "MODERATE"  -> "Умеренное качество. Чувствительные культуры могут страдать от пыли."
+            else        -> "Нездоровая атмосфера. Защитите рабочих теплиц от частиц!"
+        }
+
+        val ttl = if (isUrban) AQI_TTL_URBAN_MS else AQI_TTL_RURAL_MS
+        val entity = AqiCacheEntity(
+            geohash          = geohash,
+            observedAt       = now,
+            locationName     = locationName,
+            aqiValue         = aqiValue,
+            levelCode        = levelCode,
+            pm25             = aqiValue * 0.28,
+            pm10             = aqiValue * 0.54,
+            primaryPollutant = if (aqiValue > 100) "PM2.5" else "O3",
+            advisoryEn       = advisoryEn,
+            advisoryAm       = advisoryAm,
+            advisoryRu       = advisoryRu,
+            expiresAt        = now + ttl,
+        )
+        aqiCacheDao.insertAqi(entity)
+        entity
+    }
+
+    // ── Диагностика болезней растений ─────────────────────────────────────
+
+    /**
+     * Запустить AI-диагностику.
+     * Результат сохраняется в локальную БД для offline-доступа.
+     *
+     * @param crop название культуры
+     * @param suspectedDisease если передан — используется напрямую (из локального TFLite)
+     * @param plotId опциональная привязка к участку
+     */
+    suspend fun diagnosePlantDisease(
+        crop: String,
+        suspectedDisease: String? = null,
+        plotId: Long? = null,
+    ): PlantDiseaseEntity = withContext(Dispatchers.IO) {
+        // NETWORK STUB — заменить на:
+        //   val response = apiService.diagnosePlant(imageFile, crop, locale)
+        delay(1200)
+
+        val diseaseName = suspectedDisease ?: when (crop) {
+            "Tomato"  -> "Early Blight (Alternaria solani)"
+            "Wheat"   -> "Leaf Rust (Puccinia recondita)"
+            "Grape"   -> "Powdery Mildew (Uncinula necator)"
+            "Potato"  -> "Late Blight (Phytophthora infestans)"
+            else      -> "Nutrient Deficiency (Nitrogen)"
+        }
+
+        // Диапазон уверенности 88–98%
+        val confidence = 0.88 + (Math.random() * 0.10)
+
+        val symptoms = when (crop) {
+            "Tomato" -> "Dark concentric spots on older leaves, yellowing halos."
+            "Wheat"  -> "Small orange-brown pustules on leaves resembling metallic rust."
+            "Grape"  -> "White powdery dust coating berries and upper dry stems."
+            else     -> "Leaf margins turning yellow with slowed growth rates."
+        }
+
+        val treatmentsEn = "1. Space crops to improve ventilation.\n2. Apply organic copper fungicide locally.\n3. Use drip irrigation to avoid wetting leaves."
+        val treatmentsAm = "1. Հեռավորություն պահպանեք բույսերի միջև:\n2. Կիրառել օրգանական պղնձի ֆունգիցիդ:\n3. Օգտագործեք կաթիլային ոռոգում:"
+        val treatmentsRu = "1. Увеличьте расстояние между растениями.\n2. Локально нанесите органический медный фунгицид.\n3. Перейдите на капельный полив."
+
+        val entity = PlantDiseaseEntity(
+            plotId           = plotId,
+            cropName         = crop,
+            suspectedDisease = diseaseName,
+            confidence       = confidence,
+            symptomsSummary  = symptoms,
+            diagnosisEn      = "High-confidence diagnosis: $diseaseName affecting the vegetative foliage.",
+            diagnosisAm      = "Բարձր ճշգրտության ախտորոշում. $diseaseName բուսական սաղարթի վրա:",
+            diagnosisRu      = "Высокоточный диагноз: $diseaseName поражает листья растения.",
+            treatmentsEn     = treatmentsEn,
+            treatmentsAm     = treatmentsAm,
+            treatmentsRu     = treatmentsRu,
+            isLocalScanOnly  = false,
+        )
+
+        plantDiseaseDao.insertDiseaseReport(entity)
+        entity
     }
 }

@@ -1,13 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
--->
+<?xml version="1.0" encoding="utf-8"?>
+
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- Исключаем всю базу данных Room -->
+    <exclude domain="database" path="ecosys_database" />
+    <exclude domain="database" path="ecosys_database-shm" />
+    <exclude domain="database" path="ecosys_database-wal" />
+
+    <!-- Исключаем токены и настройки аутентификации -->
+    <exclude domain="sharedpref" path="auth_tokens.xml" />
+    <exclude domain="sharedpref" path="user_session.xml" />
+
+    <!-- DataStore файлы тоже не бэкапим -->
+    <exclude domain="file" path="datastore/" />
 </full-backup-content>

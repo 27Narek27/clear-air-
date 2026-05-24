@@ -15,4 +15,16 @@
 .cxx
 local.properties
 .env
+
+# ===== КЛЮЧИ ПОДПИСИ — НИКОГДА не коммитить =====
 debug.keystore
+debug.keystore.base64
+*.keystore
+*.jks
+*.pfx
+my-upload-key.jks
+release.keystore
+
+# Переменные окружения с секретами
+.env.local
+.env.production
