@@ -1,0 +1,6 @@
+{
+  "name": "EcoSys",
+  "description": "EcoSys is an MVP green-tech app under a Climate Data & Eco-systems theme featuring interactive maps, Room-cached AQI insights, plant disease scan histories, and senior-architect architectural dashboards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

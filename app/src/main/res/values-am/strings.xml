@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">ԷկոՍիս</string>
+    <string name="title_map">Կլիմայական SOS Քարտեզ</string>
+    <string name="title_plots">Իմ Հողամասերը</string>
+    <string name="title_scan">ԱԻ Սկանավորում</string>
+    <string name="title_settings">Կարգավորումներ</string>
+    <string name="aqi_status">AQI Կարգավիճակ</string>
+    <string name="local_db_status">Տեղական ՏԲ: Սինխրոնացված</string>
+    <string name="healthy">Առողջ</string>
+    <string name="plant_health">Բույսերի Առողջություն</string>
+    <string name="diagnosis">Ախտորոշում</string>
+    <string name="lang_en">Անգլերեն</string>
+    <string name="lang_am">Հայերեն</string>
+    <string name="lang_ru">Ռուսերեն</string>
+</resources>

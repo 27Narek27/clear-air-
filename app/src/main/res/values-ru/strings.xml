@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">ЭкоСис</string>
+    <string name="title_map">Климатическая SOS Карта</string>
+    <string name="title_plots">Мои Участки</string>
+    <string name="title_scan">ИИ Сканирование</string>
+    <string name="title_settings">Настройки</string>
+    <string name="aqi_status">Статус AQI</string>
+    <string name="local_db_status">Локальная БД: Синхронизировано</string>
+    <string name="healthy">Здоровое</string>
+    <string name="plant_health">Здоровье Растений</string>
+    <string name="diagnosis">Диагноз</string>
+    <string name="lang_en">Английский</string>
+    <string name="lang_am">Армянский</string>
+    <string name="lang_ru">Русский</string>
+</resources>
