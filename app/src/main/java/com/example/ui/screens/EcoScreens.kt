@@ -141,7 +141,10 @@ fun MainAppScreen(viewModel: EcoViewModel) {
                     verticalAlignment     = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text       = remember { LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) },
+                        text = remember {
+                            val cal = java.util.Calendar.getInstance()
+                            String.format("%02d:%02d", cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
+                        },
                         color      = Color.White.copy(alpha = 0.6f),
                         fontSize   = 10.sp,
                         fontFamily = FontFamily.Monospace,
@@ -858,7 +861,7 @@ fun ScanTabScreen(viewModel: EcoViewModel, L: (String) -> String) {
         item { Text(L("history_scans"), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
 
         if (history.isEmpty()) {
-            item { EmptyState(icon = Icons.Default.BiotechOutlined, text = L("no_scans")) }
+            item { EmptyState(icon = Icons.Default.Biotech, text = L("no_scans")) }
         } else {
             items(history) { report ->
                 Box(modifier = Modifier.fillMaxWidth().background(DeepCharcoal, RoundedCornerShape(12.dp)).border(1.dp, BorderGrey, RoundedCornerShape(12.dp)).padding(12.dp)) {
