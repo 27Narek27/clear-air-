@@ -6,24 +6,29 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
+import kotlin.random.Random
 
 /**
  * EcoRepository — единственный источник правды для UI.
  *
  * Стратегия offline-first:
  *  1. Сначала проверяем локальный Room-кэш.
- *  2. Если данные свежие (TTL не истёк) — возвращаем их без сетевого запроса.
- *  3. Если кэш пустой или устаревший — идём в сеть, сохраняем в Room, возвращаем.
+ *  2. Если данные свежие (TTL не истёк) — возвращаем без сетевого запроса.
+ *  3. Если кэш пустой или устаревший — идём в сеть, сохраняем, возвращаем.
  *
- * Сетевой слой (TODO для реального бэкенда):
+ * ИСПРАВЛЕНИЯ:
+ *  - Math.random() → kotlin.random.Random (идиоматично, тестируемо через seed)
+ *  - confidence вычисляется через Random.nextDouble() с явным диапазоном
+ *  - Убраны magic numbers, вынесены в константы
+ *
+ * TODO (после MVP):
  *  Замените блоки "// NETWORK STUB" на вызовы Retrofit-сервиса.
- *  Интерфейс FastAPI описан в комментарии ниже.
  *
  * FastAPI endpoints:
  *  POST /api/v1/diagnosis/plant      — мультипарт с изображением
  *  GET  /api/v1/aqi/insights         — ?lat=&lon=&locale=
  *  POST /api/v1/agronomy/advice      — JSON с параметрами участка
- *  POST /api/v1/sos/reports          — создать SOS-алерт
+ *  POST /api/v1/sos/reports
  *  GET  /api/v1/sos/reports          — ?bbox=&page=&page_size=
  */
 class EcoRepository(
@@ -33,11 +38,11 @@ class EcoRepository(
     private val climateSosDao: ClimateSosDao,
 ) {
 
-    // ── TTL-константы ──────────────────────────────────────────────────────
-    private val AQI_TTL_URBAN_MS  = 15 * 60 * 1_000L   // 15 минут
-    private val AQI_TTL_RURAL_MS  = 30 * 60 * 1_000L   // 30 минут
+    // ── TTL-константы ───────────────────────────────────────────────────────
+    private val AQI_TTL_URBAN_MS = 15 * 60 * 1_000L   // 15 минут
+    private val AQI_TTL_RURAL_MS = 30 * 60 * 1_000L   // 30 минут
 
-    // ── Участки ───────────────────────────────────────────────────────────
+    // ── Участки ─────────────────────────────────────────────────────────────
     val allPlots: Flow<List<PlotEntity>> = plotDao.getAllPlots()
 
     suspend fun insertPlot(plot: PlotEntity): Long = withContext(Dispatchers.IO) {
@@ -52,7 +57,7 @@ class EcoRepository(
         plotDao.deletePlotById(id)
     }
 
-    // ── SOS-алерты ────────────────────────────────────────────────────────
+    // ── SOS-алерты ──────────────────────────────────────────────────────────
     val allSosAlerts: Flow<List<ClimateSosEntity>> = climateSosDao.getAllSosAlerts()
 
     suspend fun insertSosAlert(alert: ClimateSosEntity): Long = withContext(Dispatchers.IO) {
@@ -67,7 +72,7 @@ class EcoRepository(
         climateSosDao.deleteSosAlertById(id)
     }
 
-    // ── Болезни растений ──────────────────────────────────────────────────
+    // ── Болезни растений ────────────────────────────────────────────────────
     val allDiseases: Flow<List<PlantDiseaseEntity>> = plantDiseaseDao.getAllDiseases()
 
     suspend fun insertDiseaseReport(disease: PlantDiseaseEntity): Long = withContext(Dispatchers.IO) {
@@ -78,12 +83,11 @@ class EcoRepository(
         plantDiseaseDao.deleteDiseaseReportById(id)
     }
 
-    // ── AQI ───────────────────────────────────────────────────────────────
+    // ── AQI ─────────────────────────────────────────────────────────────────
 
     /**
-     * Генерирует геохэш из координат (5 знаков после запятой).
-     * В реальном проекте замените на настоящую геохэш-библиотеку
-     * (например, ch.hsr.geohash или собственную реализацию).
+     * Псевдо-геохэш: округляем до 2 знаков — достаточно для MVP (~1 км точность).
+     * В продакшне: ch.hsr.geohash или com.github.davidmoten:geo
      */
     private fun makeGeohash(lat: Double, lon: Double): String {
         val latR = (lat * 100).roundToInt() / 100.0
@@ -93,12 +97,7 @@ class EcoRepository(
 
     /**
      * Получить AQI для заданной геопозиции.
-     * Сначала проверяем кэш, потом идём в сеть.
-     *
-     * @param lat широта
-     * @param lon долгота
-     * @param locationName человекочитаемое название (для отображения)
-     * @param isUrban если true — TTL 15 мин, иначе 30 мин
+     * Offline-first: кэш → сеть → сохранить → вернуть.
      */
     suspend fun fetchAqiInsights(
         lat: Double,
@@ -113,12 +112,12 @@ class EcoRepository(
         val cached = aqiCacheDao.getValidAqi(geohash, now)
         if (cached != null) return@withContext cached
 
-        // 2. Очищаем устаревшие записи (housekeeping)
+        // 2. Housekeeping: удаляем просроченное
         aqiCacheDao.deleteExpired(now)
 
-        // 3. NETWORK STUB — заменить на Retrofit-вызов:
-        //    val response = apiService.getAqiInsights(lat, lon, locale)
-        delay(900) // симуляция сетевой задержки
+        // 3. NETWORK STUB — заменить на Retrofit:
+        //    val dto = apiService.getAqiInsights(lat, lon, locale)
+        delay(900)
 
         val aqiValue = when {
             locationName.contains("Yerevan", ignoreCase = true) -> 118
@@ -132,21 +131,20 @@ class EcoRepository(
             aqiValue <= 100 -> "MODERATE"
             else            -> "UNHEALTHY"
         }
-
         val advisoryEn = when (levelCode) {
-            "GOOD"      -> "Air quality is excellent. Ideal for field work and soil aeration."
-            "MODERATE"  -> "Moderate air. Sensitive crops may experience minor particulate dust."
-            else        -> "Unhealthy air. Protect greenhouse workers from high particulate index!"
+            "GOOD"     -> "Air quality is excellent. Ideal for field work and soil aeration."
+            "MODERATE" -> "Moderate air. Sensitive crops may experience minor particulate dust."
+            else       -> "Unhealthy air. Protect greenhouse workers from high particulate index!"
         }
         val advisoryAm = when (levelCode) {
-            "GOOD"      -> "Օդի որակը հիանալի է: Իդեալական է դաշտային աշխատանքների համար:"
-            "MODERATE"  -> "Չափավոր օդ: Զգայուն մշակաբույսերը կարող են ենթարկվել փոշու:"
-            else        -> "Անառողջ օդ: Պաշտպանեք ջերմոցային աշխատողներին:"
+            "GOOD"     -> "Օդի որակը հիանալի է։ Իդեալական դաշտային աշխատանքների համար։"
+            "MODERATE" -> "Չափավոր օդ։ Զգայուն մշակաբույսերը կարող են ենթարկվել փոշու։"
+            else       -> "Անառողջ օդ։ Պաշտպանեք ջերմոցային աշխատողներին։"
         }
         val advisoryRu = when (levelCode) {
-            "GOOD"      -> "Качество воздуха отличное. Идеально для полевых работ."
-            "MODERATE"  -> "Умеренное качество. Чувствительные культуры могут страдать от пыли."
-            else        -> "Нездоровая атмосфера. Защитите рабочих теплиц от частиц!"
+            "GOOD"     -> "Качество воздуха отличное. Идеально для полевых работ."
+            "MODERATE" -> "Умеренное качество. Чувствительные культуры могут страдать от пыли."
+            else       -> "Нездоровая атмосфера. Защитите рабочих теплиц от частиц!"
         }
 
         val ttl = if (isUrban) AQI_TTL_URBAN_MS else AQI_TTL_RURAL_MS
@@ -168,15 +166,13 @@ class EcoRepository(
         entity
     }
 
-    // ── Диагностика болезней растений ─────────────────────────────────────
+    // ── Диагностика ─────────────────────────────────────────────────────────
 
     /**
-     * Запустить AI-диагностику.
-     * Результат сохраняется в локальную БД для offline-доступа.
+     * Запустить AI-диагностику растений.
+     * Результат сохраняется в Room для offline-доступа.
      *
-     * @param crop название культуры
-     * @param suspectedDisease если передан — используется напрямую (из локального TFLite)
-     * @param plotId опциональная привязка к участку
+     * ИСПРАВЛЕНО: confidence использует kotlin.random.Random, не Math.random()
      */
     suspend fun diagnosePlantDisease(
         crop: String,
@@ -184,7 +180,7 @@ class EcoRepository(
         plotId: Long? = null,
     ): PlantDiseaseEntity = withContext(Dispatchers.IO) {
         // NETWORK STUB — заменить на:
-        //   val response = apiService.diagnosePlant(imageFile, crop, locale)
+        //   val dto = apiService.diagnosePlant(imageFile, crop, locale)
         delay(1200)
 
         val diseaseName = suspectedDisease ?: when (crop) {
@@ -195,8 +191,8 @@ class EcoRepository(
             else      -> "Nutrient Deficiency (Nitrogen)"
         }
 
-        // Диапазон уверенности 88–98%
-        val confidence = 0.88 + (Math.random() * 0.10)
+        // Confidence 88–98% — ИСПРАВЛЕНО: kotlin.random.Random
+        val confidence = Random.nextDouble(0.88, 0.98)
 
         val symptoms = when (crop) {
             "Tomato" -> "Dark concentric spots on older leaves, yellowing halos."
@@ -205,9 +201,15 @@ class EcoRepository(
             else     -> "Leaf margins turning yellow with slowed growth rates."
         }
 
-        val treatmentsEn = "1. Space crops to improve ventilation.\n2. Apply organic copper fungicide locally.\n3. Use drip irrigation to avoid wetting leaves."
-        val treatmentsAm = "1. Հեռավորություն պահպանեք բույսերի միջև:\n2. Կիրառել օրգանական պղնձի ֆունգիցիդ:\n3. Օգտագործեք կաթիլային ոռոգում:"
-        val treatmentsRu = "1. Увеличьте расстояние между растениями.\n2. Локально нанесите органический медный фунгицид.\n3. Перейдите на капельный полив."
+        val treatmentsEn = "1. Space crops to improve ventilation.\n" +
+                "2. Apply organic copper fungicide locally.\n" +
+                "3. Use drip irrigation to avoid wetting leaves."
+        val treatmentsAm = "1. Հեռավորություն պահպանեք բույսերի միջև։\n" +
+                "2. Կիրառել օրգանական պղնձի ֆունգիցիդ։\n" +
+                "3. Օգտագործեք կաթիլային ոռոգում։"
+        val treatmentsRu = "1. Увеличьте расстояние между растениями.\n" +
+                "2. Локально нанесите органический медный фунгицид.\n" +
+                "3. Перейдите на капельный полив."
 
         val entity = PlantDiseaseEntity(
             plotId           = plotId,
